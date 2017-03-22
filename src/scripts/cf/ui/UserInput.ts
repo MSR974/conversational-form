@@ -241,8 +241,8 @@ namespace cf {
 			ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
 
 			// animate input field in
-			this.visible = true;
-
+			this.visible = !(window.ConversationalForm.dictionary.data['input-disabled-on-select'] && event.detail.elements !== undefined && event.detail.elements[0].type === "radio");
+			
 			this._currentTag = <ITag | ITagGroup> event.detail.tag;
 
 			this.el.setAttribute("tag-type", this._currentTag.type);

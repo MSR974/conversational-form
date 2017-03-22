@@ -133,6 +133,7 @@ namespace cf {
 			"input-placeholder-file-error": "File upload failed ...",
 			"input-placeholder-file-size-error": "File size too big ...",
 			"input-no-filter": "No results found for <strong>{input-value}</strong>",
+			"input-disabled-on-select": true,
 			"user-reponse-and": " and ",
 			"user-reponse-missing": "Missing input ...",
 			"user-reponse-missing-group": "Nothing selected ...",
