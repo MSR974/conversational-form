@@ -424,29 +424,17 @@ namespace cf {
 			}
 		}
 
-		public updateStateOnElementsFromTag(tag: ITag){
-			for (var index = 0; index < this.elements.length; index++) {
-				var element: any = this.elements[index];
-
-				if(element.referenceTag == tag){
-					this.updateStateOnElements(element);
-					break;
-				}
-			}
-		}
-
 		public updateStateOnElements(controlElement: IControlElement){
+			this.disabled = true;
 			this.currentControlElement = controlElement;
 
-			if(this.currentControlElement.type == "RadioButton"){
+			if(controlElement.type == "RadioButton"){
 				// uncheck other radio buttons...
 				const elements: Array<IControlElement> = this.getElements();
 				for (let i = 0; i < elements.length; i++) {
 					let element: RadioButton = <RadioButton>elements[i];
 					if(element != controlElement){
 						element.checked = false;
-					}else{
-						element.checked = true;
 					}
 				}
 			}

@@ -45,7 +45,6 @@ namespace cf {
 		private onSubmitButtonClickCallback: () => void;
 		private onInputFocusCallback: () => void;
 		private onInputBlurCallback: () => void;
-		private onOriginalTagChangedCallback: () => void;
 		private onControlElementProgressChangeCallback: () => void;
 		private errorTimer: number = 0;
 		private shiftIsDown: boolean = false;
@@ -118,9 +117,6 @@ namespace cf {
 			this.flowUpdateCallback = this.onFlowUpdate.bind(this);
 			this.eventTarget.addEventListener(FlowEvents.FLOW_UPDATE, this.flowUpdateCallback, false);
 
-			this.onOriginalTagChangedCallback = this.onOriginalTagChanged.bind(this);
-			this.eventTarget.addEventListener(TagEvents.ORIGINAL_ELEMENT_CHANGED, this.onOriginalTagChangedCallback, false);
-
 			this.inputInvalidCallback = this.inputInvalid.bind(this);
 			this.eventTarget.addEventListener(FlowEvents.USER_INPUT_INVALID, this.inputInvalidCallback, false);
 
@@ -136,7 +132,8 @@ namespace cf {
 		}
 
 		public getInputValue():string{
-			const str: string = this.inputElement.value;
+			//const str: string = this.inputElement.value;
+			const str: string = this.inputElement.value.replace(/^\s+|\s+$/g, '').trim();
 
 			// Build-in way to handle XSS issues ->
 			const div = document.createElement('div');
@@ -173,21 +170,6 @@ namespace cf {
 			
 			this.disabled = true;
 			this.visible = false;
-		}
-
-		/**
-		* @name onOriginalTagChanged
-		* on domElement from a tag value changed..
-		*/
-		private onOriginalTagChanged(event: CustomEvent): void {
-			if(this.currentTag == event.detail.tag){
-				this.currentValue = this.inputElement.value = (<ITag | ITagGroup> event.detail.tag).value.toString()
-				this.onInputChange();
-			}
-
-			if(this.controlElements && this.controlElements.active){
-				this.controlElements.updateStateOnElementsFromTag(event.detail.tag)
-			}
 		}
 
 		private onInputChange(){
@@ -241,9 +223,10 @@ namespace cf {
 			ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
 
 			// animate input field in
-			this.visible = !(window.ConversationalForm.dictionary.data['input-disabled-on-select'] && event.detail.elements !== undefined && event.detail.elements[0].type === "radio");
-			
-			this._currentTag = <ITag | ITagGroup> event.detail.tag;
+			// if the element type is radio button don't show input box 
+			this.visible = !(window.ConversationalForm.dictionary.data['input-disabled-on-select'] && event.detail.type === "group" && event.detail.elements[0].type === "radio");
+
+			this._currentTag = <ITag | ITagGroup> event.detail;
 
 			this.el.setAttribute("tag-type", this._currentTag.type);
 
@@ -311,21 +294,18 @@ namespace cf {
 			if(event.keyCode == Dictionary.keyCodes["shift"])
 				this.shiftIsDown = true;
 			
-			const key: string = String.fromCharCode(event.keyCode);
-			
 			// prevent textarea line breaks
-			if(event.keyCode == Dictionary.keyCodes["enter"] && !event.shiftKey){
-				event.preventDefault();
-			}else{
+			// if(event.keyCode == Dictionary.keyCodes["enter"] && !event.shiftKey){
+			// 	//event.preventDefault();
+			// }else{
 				// handle password input
-				if(this._currentTag && this._currentTag.type == "password"){
-					if(event.keyCode === Dictionary.keyCodes["backspace"]){
-						this.currentValue = this.currentValue.length > 0 ? this.currentValue.slice(0, this.currentValue.length - 1) : "";
-					}else{
-						this.currentValue += key;
-					}
-				}
+			if(this._currentTag && this._currentTag.type == "password"){
+				if(event.key.toLowerCase() == "backspace")
+					this.currentValue = this.currentValue.length > 0 ? this.currentValue.slice(0, this.currentValue.length - 1) : "";
+				else
+					this.currentValue += event.key;
 			}
+			// }
 		}
 
 		private onKeyUp(event: KeyboardEvent){
@@ -378,7 +358,13 @@ namespace cf {
 			if((event.keyCode == Dictionary.keyCodes["enter"] && !event.shiftKey) || event.keyCode == Dictionary.keyCodes["space"]){
 				if(event.keyCode == Dictionary.keyCodes["enter"] && this.active){
 					event.preventDefault();
-					this.onEnterOrSubmitButtonSubmit();
+					const tagType: string = this._currentTag.type == "group" ? (<TagGroup>this._currentTag).getGroupTagType() : this._currentTag.type;
+					console.log("onKeyUp tagType", tagType);
+					if ((tagType == "select" || tagType == "checkbox") || this._currentTag.domElement.localName == "input") {
+						this.onEnterOrSubmitButtonSubmit();
+					} else {
+						this.inputElement.value = this.inputElement.value + "\n";
+					}
 				}else{
 					// either click on submit button or do something with control elements
 					if(event.keyCode == Dictionary.keyCodes["enter"] || event.keyCode == Dictionary.keyCodes["space"]){

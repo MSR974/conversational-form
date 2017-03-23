@@ -1,0 +1,58 @@
+typescript
+		=> 0.9.0
+			delete thinking points
+			=> added in public setValue(dto: FlowDTO = null) in ChatResponse.ts
+				
+				this.el.classList.remove("show");				
+				
+				context:
+					if(!this.response || this.response.length == 0) {
+						text.setAttribute("thinking", "");
+					
+						this.el.classList.remove("show");
+
+					}
+
+			=> add listener to replace /n to <br> || $(#toto").html($("#toto").html().replace("\n", "<br>"));
+				=> modified now using css ... in index_answer_questions.html
+					
+					text[value-added] {
+						white-space: pre-wrap;
+					}
+
+			=> newline when enter button is pressed
+				=> modified function onKeyUp(event: KeyboardEvent) in UserInputs.ts
+
+				if(event.keyCode == Dictionary.keyCodes["enter"] && this.active) {
+					event.preventDefault();
+					const tagType: string = this._currentTag.type == "group" ? (<TagGroup>this._currentTag).getGroupTagType() : this._currentTag.type;
+
+					if (tagType == "select" || tagType == "checkbox") {
+						this.onEnterOrSubmitButtonSubmit();
+					} else {
+						this.inputElement.value = this.inputElement.value + "\n";
+					}
+				}
+
+			=> trim spaces and newline
+				=> modified function getInputValue():string in UserInputs.ts
+
+					const str: string = this.inputElement.value.replace(/^\s+|\s+$/g, '').trim();
+
+		=> 0.9.1
+			delete thinking points
+			=> in ChatResponse.ts
+					comment //this.setToThinking();
+				and add after each one of them
+					this.el.classList.remove("show");
+					this.textEl.removeAttribute('thinking');
+
+			=> remove inputbox when radio button
+				-> modified in private onFlowUpdate(event: CustomEvent) in UserInput.ts
+				// animate input field in
+				this.visible = true;
+
+				to:
+
+				// animate input field in
+				this.visible = !(window.ConversationalForm.dictionary.data['input-disabled-on-select'] && event.detail.elements !== undefined && event.detail.elements[0].type === "radio");

@@ -65,7 +65,9 @@ namespace cf {
 			const isThinking: boolean = this.textEl.hasAttribute("thinking");
 
 			if(!dto){
-				this.setToThinking();
+				//this.setToThinking();
+				this.el.classList.remove("show");
+				this.textEl.removeAttribute('thinking');
 			}else{
 				this.response = dto.text;
 				const processedResponse: string = this.processResponseAndSetText();
@@ -100,7 +102,9 @@ namespace cf {
 			this.el.classList.add("show");
 			this.disabled = false;
 			if(!this.response){
-				this.setToThinking();
+				//this.setToThinking();
+				this.el.classList.remove("show");
+				this.textEl.removeAttribute('thinking');
 			}else{
 				this.checkForEditMode();
 			}
@@ -180,8 +184,9 @@ namespace cf {
 		* click handler for el
 		*/
 		private onClick(event: MouseEvent): void {
-			this.setToThinking();
-
+			//this.setToThinking();
+			this.el.classList.remove("show");
+			this.textEl.removeAttribute('thinking');
 			ConversationalForm.illustrateFlow(this, "dispatch", ChatResponseEvents.USER_ANSWER_CLICKED, event);
 			this.eventTarget.dispatchEvent(new CustomEvent(ChatResponseEvents.USER_ANSWER_CLICKED, {
 				detail: this._tag
