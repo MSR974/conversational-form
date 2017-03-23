@@ -118,16 +118,10 @@ typescript
 					       return this.domElement.hasAttribute('cf-empty-answer');
 					}
 				   }
-				 => modified in FlowManager.ts constructor
-				  from:
-					this.userInputSubmitCallback = this.userInputSubmit.bind(this);
-					this.eventTarget.addEventListener(UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
-				   
-				  to:
-				   
-				 	if (!this.currentTag.empty_answer) {
-					   this.userInputSubmitCallback = this.userInputSubmit.bind(this);
-					   this.eventTarget.addEventListener(UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
-					} else {
-					   setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
+				 => added in FlowManager.ts validateStepAndUpdate function 
+				  
+				   if (this.tags[this.step].empty_answer) {
+						// if current tag shouldn't wait for an answer go to next step
+						this.savedStep = this.step;
+						setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
 					}

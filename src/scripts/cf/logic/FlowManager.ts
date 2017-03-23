@@ -53,12 +53,8 @@ namespace cf {
 
 			this.maxSteps = this.tags.length;
 
-			if (!this.currentTag.empty_answer) {
-				this.userInputSubmitCallback = this.userInputSubmit.bind(this);
-				this.eventTarget.addEventListener(UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
-			} else {
-				setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
-			}
+			this.userInputSubmitCallback = this.userInputSubmit.bind(this);
+			this.eventTarget.addEventListener(UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
 		}
 
 		public userInputSubmit(event: CustomEvent){
@@ -195,10 +191,18 @@ namespace cf {
 		private validateStepAndUpdate(){
 			if(this.maxSteps > 0){
 				if(this.step == this.maxSteps){
-					// console.warn("We are at the end..., submit click")
+					console.warn("We are at the end..., submit click")
 					this.cfReference.doSubmitForm();
 				}else{
+					console.log("currentTag, step, empty_answer", this.tags[this.step], this.step, this.tags[this.step].empty_answer);
 					this.step %= this.maxSteps;
+
+					if (this.tags[this.step].empty_answer) {
+						// if current tag shouldn't wait for an answer go to next step
+						this.savedStep = this.step;
+						setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
+					}
+
 					if(this.currentTag.disabled){
 						// check if current tag has become or is disabled, if it is, then skip step.
 						this.skipStep();

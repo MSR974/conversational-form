@@ -4113,7 +4113,6 @@ var cf;
     // class
     var FlowManager = (function () {
         function FlowManager(options) {
-            var _this = this;
             this.stopped = false;
             this.maxSteps = 0;
             this.step = 0;
@@ -4123,13 +4122,8 @@ var cf;
             this.eventTarget = options.eventTarget;
             this.tags = options.tags;
             this.maxSteps = this.tags.length;
-            if (!this.currentTag.empty_answer) {
-                this.userInputSubmitCallback = this.userInputSubmit.bind(this);
-                this.eventTarget.addEventListener(cf.UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
-            }
-            else {
-                setTimeout(function () { return _this.nextStep(); }, cf.ConversationalForm.animationsEnabled ? 250 : 0);
-            }
+            this.userInputSubmitCallback = this.userInputSubmit.bind(this);
+            this.eventTarget.addEventListener(cf.UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
         }
         Object.defineProperty(FlowManager.prototype, "currentTag", {
             get: function () {
@@ -4250,13 +4244,20 @@ var cf;
             this.nextStep();
         };
         FlowManager.prototype.validateStepAndUpdate = function () {
+            var _this = this;
             if (this.maxSteps > 0) {
                 if (this.step == this.maxSteps) {
-                    // console.warn("We are at the end..., submit click")
+                    console.warn("We are at the end..., submit click");
                     this.cfReference.doSubmitForm();
                 }
                 else {
+                    console.log("currentTag, step, empty_answer", this.tags[this.step], this.step, this.tags[this.step].empty_answer);
                     this.step %= this.maxSteps;
+                    if (this.tags[this.step].empty_answer) {
+                        // if current tag shouldn't wait for an answer go to next step
+                        this.savedStep = this.step;
+                        setTimeout(function () { return _this.nextStep(); }, cf.ConversationalForm.animationsEnabled ? 250 : 0);
+                    }
                     if (this.currentTag.disabled) {
                         // check if current tag has become or is disabled, if it is, then skip step.
                         this.skipStep();

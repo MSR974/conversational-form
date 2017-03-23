@@ -221,13 +221,11 @@ namespace cf {
 
 		private onFlowUpdate(event: CustomEvent){
 			ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
-
 			// animate input field in
 			// if the element type is radio button don't show input box 
 			this.visible = !(window.ConversationalForm.dictionary.data['input-disabled-on-select'] && event.detail.type === "group" && event.detail.elements[0].type === "radio");
 
 			this._currentTag = <ITag | ITagGroup> event.detail;
-
 			this.el.setAttribute("tag-type", this._currentTag.type);
 
 			// set input field to type password if the dom input field is that, covering up the input
