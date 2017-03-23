@@ -292,21 +292,19 @@ var cf;
 (function (cf) {
     var ConversationalForm = (function () {
         function ConversationalForm(options) {
-            this.version = "0.9.2";
-            this.cdnPath = "//conversational-form-{version}-0iznjsw.stackpathdns.com/";
+            this.version = "0.9.1";
+            this.cdnPath = "//conversational-form-091-0iznjsw.stackpathdns.com/";
             this.isDevelopment = false;
             this.loadExternalStyleSheet = true;
             this.preventAutoAppend = false;
             this.preventAutoStart = false;
             window.ConversationalForm = this;
-            this.cdnPath = this.cdnPath.split("{version}").join(this.version.split(".").join(""));
             console.log('Conversational Form > version:', this.version);
             window.ConversationalForm[this.createId] = this;
             // set a general step validation callback
             if (options.flowStepCallback)
                 cf.FlowManager.generalFlowStepCallback = options.flowStepCallback;
-            this.isDevelopment = ConversationalForm.illustrateAppFlow = !!document.getElementById("conversational-form-development");
-            if (this.isDevelopment || options.loadExternalStyleSheet == false) {
+            if (document.getElementById("conversational-form-development") || options.loadExternalStyleSheet == false) {
                 this.loadExternalStyleSheet = false;
             }
             if (!isNaN(options.scrollAccerlation))
@@ -476,6 +474,7 @@ var cf;
                 if (tag.type == "radio" || tag.type == "checkbox") {
                     if (!groups[tag.name])
                         groups[tag.name] = [];
+                    console.log(this.constructor.name, 'tag.name]:', tag.name);
                     groups[tag.name].push(tag);
                 }
             }
@@ -499,6 +498,8 @@ var cf;
             }
         };
         ConversationalForm.prototype.setupUI = function () {
+            console.log('Conversational Form > start > mapped DOM tags:', this.tags);
+            console.log('----------------------------------------------');
             // start the flow
             this.flowManager = new cf.FlowManager({
                 cfReference: this,
@@ -549,13 +550,11 @@ var cf;
         /**
         * @name remapTagsAndStartFrom
         * index: number, what index to start from
-        * setCurrentTagValue: boolean, usually this method is called when wanting to loop or skip over questions, therefore it might be usefull to set the value of the current tag before changing index.
-        * ignoreExistingTags: boolean, possible to ignore existing tags, to allow for the flow to just "happen"
+        * setCurrentTagValue: boolean, usually this method is called when wanting to loop or skip over questions, therefore it might be usefull to set the valie of the current tag before changing index.
         */
-        ConversationalForm.prototype.remapTagsAndStartFrom = function (index, setCurrentTagValue, ignoreExistingTags) {
+        ConversationalForm.prototype.remapTagsAndStartFrom = function (index, setCurrentTagValue) {
             if (index === void 0) { index = 0; }
             if (setCurrentTagValue === void 0) { setCurrentTagValue = false; }
-            if (ignoreExistingTags === void 0) { ignoreExistingTags = false; }
             if (setCurrentTagValue) {
                 this.chatList.setCurrentUserResponse(this.userInput.getFlowDTO());
             }
@@ -564,7 +563,7 @@ var cf;
                 var tag = this.tags[i];
                 tag.refresh();
             }
-            this.flowManager.startFrom(index, ignoreExistingTags);
+            this.flowManager.startFrom(index);
         };
         /**
         * @name focus
@@ -619,13 +618,12 @@ var cf;
             this.el = null;
             window.ConversationalForm[this.createId] = null;
         };
-        // to illustrate the event flow of the app
         ConversationalForm.illustrateFlow = function (classRef, type, eventType, detail) {
             // ConversationalForm.illustrateFlow(this, "dispatch", FlowEvents.USER_INPUT_INVALID, event.detail);
             // ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
             if (detail === void 0) { detail = null; }
-            if (ConversationalForm.illustrateAppFlow) {
-                var highlight = "font-weight: 900; background: " + (type == "receive" ? "#e6f3fe" : "pink") + "; color: black; padding: 0px 5px;";
+            if (ConversationalForm.ILLUSTRATE_APP_FLOW && navigator.appName != 'Netscape') {
+                var highlight = "font-weight: 900; background: pink; color: black; padding: 0px 5px;";
                 console.log("%c** event flow: %c" + eventType + "%c flow type: %c" + type + "%c from: %c" + classRef.constructor.name, "font-weight: 900;", highlight, "font-weight: 400;", highlight, "font-weight: 400;", highlight);
                 if (detail)
                     console.log("** event flow detail:", detail);
@@ -635,11 +633,7 @@ var cf;
             if (ConversationalForm.hasAutoInstantiated)
                 return;
             // auto start the conversation
-            var formElements = document.querySelectorAll("form[cf-form]");
-            // no form elements found, look for the old init attribute
-            if (formElements.length === 0) {
-                formElements = document.querySelectorAll("form[cf-form-element]");
-            }
+            var formElements = document.querySelectorAll("form[cf-form]") || document.querySelectorAll("form[cf-form-element]");
             var formContexts = document.querySelectorAll("*[cf-context]");
             if (formElements && formElements.length > 0) {
                 for (var i = 0; i < formElements.length; i++) {
@@ -656,13 +650,14 @@ var cf;
         return ConversationalForm;
     }());
     ConversationalForm.animationsEnabled = true;
-    ConversationalForm.illustrateAppFlow = true;
+    // to illustrate the event flow of the app
+    ConversationalForm.ILLUSTRATE_APP_FLOW = true;
     ConversationalForm.hasAutoInstantiated = false;
     cf.ConversationalForm = ConversationalForm;
 })(cf || (cf = {}));
 if (document.readyState == "complete") {
     // if document alread instantiated, usually this happens if Conversational Form is injected through JS
-    setTimeout(function () { return cf.ConversationalForm.autoStartTheConversation(); }, 0);
+    cf.ConversationalForm.autoStartTheConversation();
 }
 else {
     // await for when document is ready
@@ -1399,27 +1394,16 @@ var cf;
                 this.resetTabList();
             }
         };
-        ControlElements.prototype.updateStateOnElementsFromTag = function (tag) {
-            for (var index = 0; index < this.elements.length; index++) {
-                var element = this.elements[index];
-                if (element.referenceTag == tag) {
-                    this.updateStateOnElements(element);
-                    break;
-                }
-            }
-        };
         ControlElements.prototype.updateStateOnElements = function (controlElement) {
+            this.disabled = true;
             this.currentControlElement = controlElement;
-            if (this.currentControlElement.type == "RadioButton") {
+            if (controlElement.type == "RadioButton") {
                 // uncheck other radio buttons...
                 var elements = this.getElements();
                 for (var i = 0; i < elements.length; i++) {
                     var element = elements[i];
                     if (element != controlElement) {
                         element.checked = false;
-                    }
-                    else {
-                        element.checked = true;
                     }
                 }
             }
@@ -1960,7 +1944,6 @@ var cf;
         "right": 39,
         "down": 40,
         "up": 38,
-        "backspace": 8,
         "enter": 13,
         "space": 32,
         "shift": 16,
@@ -1975,7 +1958,6 @@ var cf;
 /// <reference path="SelectTag.ts"/>
 /// <reference path="OptionTag.ts"/>
 /// <reference path="../ConversationalForm.ts"/>
-/// <reference path="../logic/EventDispatcher.ts"/>
 // basic tag from form logic
 // types:
 // radio
@@ -1990,15 +1972,10 @@ var cf;
 // namespace
 var cf;
 (function (cf) {
-    cf.TagEvents = {
-        ORIGINAL_ELEMENT_CHANGED: "cf-tag-dom-element-changed"
-    };
     // class
     var Tag = (function () {
         function Tag(options) {
             this.domElement = options.domElement;
-            this.changeCallback = this.onDomElementChange.bind(this);
-            this.domElement.addEventListener("change", this.changeCallback, false);
             // remove tabIndex from the dom element.. danger zone... should we or should we not...
             this.domElement.tabIndex = -1;
             // questions array
@@ -2016,11 +1993,18 @@ var cf;
             // 	// set a standard e-mail pattern for email type input
             // 	this.pattern = new RegExp("^[^@]+@[^@]+\.[^@]+$");
             // }
-            if (this.type != "group" && cf.ConversationalForm.illustrateAppFlow) {
-                console.log('Conversational Form > Tag registered:', this.type, this);
+            if (this.type != "group") {
+                console.log('Conversational Form > Tag registered:', this.type);
             }
             this.refresh();
         }
+        Object.defineProperty(Tag.prototype, "empty_answer", {
+            get: function () {
+                return this.domElement.hasAttribute('cf-empty-answer');
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(Tag.prototype, "type", {
             get: function () {
                 return this.domElement.getAttribute("type") || this.domElement.tagName.toLowerCase();
@@ -2092,13 +2076,6 @@ var cf;
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(Tag.prototype, "eventTarget", {
-            set: function (value) {
-                this._eventTarget = value;
-            },
-            enumerable: true,
-            configurable: true
-        });
         Object.defineProperty(Tag.prototype, "errorMessage", {
             get: function () {
                 if (!this.errorMessages) {
@@ -2126,8 +2103,6 @@ var cf;
             configurable: true
         });
         Tag.prototype.dealloc = function () {
-            this.domElement.removeEventListener("change", this.changeCallback, false);
-            this.changeCallback = null;
             this.domElement = null;
             this.defaultValue = null;
             this.errorMessages = null;
@@ -2282,18 +2257,6 @@ var cf;
                 }
             }
         };
-        /**
-        * @name onDomElementChange
-        * on dom element value change event, ex. w. browser autocomplete mode
-        */
-        Tag.prototype.onDomElementChange = function () {
-            this._eventTarget.dispatchEvent(new CustomEvent(cf.TagEvents.ORIGINAL_ELEMENT_CHANGED, {
-                detail: {
-                    value: this.value,
-                    tag: this
-                }
-            }));
-        };
         return Tag;
     }());
     cf.Tag = Tag;
@@ -2313,8 +2276,7 @@ var cf;
     var TagGroup = (function () {
         function TagGroup(options) {
             this.elements = options.elements;
-            if (cf.ConversationalForm.illustrateAppFlow)
-                console.log('Conversational Form > TagGroup registered:', this.elements[0].type, this);
+            console.log('TagGroup registered:', this.elements[0].type, this);
         }
         Object.defineProperty(TagGroup.prototype, "required", {
             get: function () {
@@ -2329,13 +2291,9 @@ var cf;
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(TagGroup.prototype, "eventTarget", {
-            set: function (value) {
-                this._eventTarget = value;
-                for (var i = 0; i < this.elements.length; i++) {
-                    var tag = this.elements[i];
-                    tag.eventTarget = value;
-                }
+        Object.defineProperty(TagGroup.prototype, "empty_answer", {
+            get: function () {
+                return false;
             },
             enumerable: true,
             configurable: true
@@ -2881,7 +2839,7 @@ var cf;
         };
         // override
         RadioButton.prototype.getTemplate = function () {
-            var isChecked = this.referenceTag.domElement.checked || this.referenceTag.domElement.hasAttribute("checked");
+            var isChecked = this.referenceTag.domElement.hasAttribute("checked");
             return "<cf-radio-button class=\"cf-button\" checked=" + (isChecked ? "checked" : "") + ">\n\t\t\t\t<div>\n\t\t\t\t\t<cf-radio></cf-radio>\n\t\t\t\t\t" + this.referenceTag.label + "\n\t\t\t\t</div>\n\t\t\t</cf-radio-button>\n\t\t\t";
         };
         return RadioButton;
@@ -2941,7 +2899,7 @@ var cf;
         };
         // override
         CheckboxButton.prototype.getTemplate = function () {
-            var isChecked = this.referenceTag.domElement.checked || this.referenceTag.domElement.hasAttribute("checked");
+            var isChecked = this.referenceTag.value == "1" || this.referenceTag.domElement.hasAttribute("checked");
             return "<cf-button class=\"cf-button cf-checkbox-button " + (this.referenceTag.label.trim().length == 0 ? "no-text" : "") + "\" checked=" + (isChecked ? "checked" : "") + ">\n\t\t\t\t<div>\n\t\t\t\t\t<cf-checkbox></cf-checkbox>\n\t\t\t\t\t" + this.referenceTag.label + "\n\t\t\t\t</div>\n\t\t\t</cf-button>\n\t\t\t";
         };
         return CheckboxButton;
@@ -3341,8 +3299,6 @@ var cf;
             document.addEventListener("keydown", _this.keyDownCallback, false);
             _this.flowUpdateCallback = _this.onFlowUpdate.bind(_this);
             _this.eventTarget.addEventListener(cf.FlowEvents.FLOW_UPDATE, _this.flowUpdateCallback, false);
-            _this.onOriginalTagChangedCallback = _this.onOriginalTagChanged.bind(_this);
-            _this.eventTarget.addEventListener(cf.TagEvents.ORIGINAL_ELEMENT_CHANGED, _this.onOriginalTagChangedCallback, false);
             _this.inputInvalidCallback = _this.inputInvalid.bind(_this);
             _this.eventTarget.addEventListener(cf.FlowEvents.USER_INPUT_INVALID, _this.inputInvalidCallback, false);
             _this.onControlElementSubmitCallback = _this.onControlElementSubmit.bind(_this);
@@ -3397,7 +3353,8 @@ var cf;
             configurable: true
         });
         UserInput.prototype.getInputValue = function () {
-            var str = this.inputElement.value;
+            //const str: string = this.inputElement.value;
+            var str = this.inputElement.value.replace(/^\s+|\s+$/g, '').trim();
             // Build-in way to handle XSS issues ->
             var div = document.createElement('div');
             div.appendChild(document.createTextNode(str));
@@ -3427,19 +3384,6 @@ var cf;
                 this.controlElements.clearTagsAndReset();
             this.disabled = true;
             this.visible = false;
-        };
-        /**
-        * @name onOriginalTagChanged
-        * on domElement from a tag value changed..
-        */
-        UserInput.prototype.onOriginalTagChanged = function (event) {
-            if (this.currentTag == event.detail.tag) {
-                this.currentValue = this.inputElement.value = event.detail.tag.value.toString();
-                this.onInputChange();
-            }
-            if (this.controlElements && this.controlElements.active) {
-                this.controlElements.updateStateOnElementsFromTag(event.detail.tag);
-            }
         };
         UserInput.prototype.onInputChange = function () {
             if (!this.active && !this.controlElements.active)
@@ -3486,8 +3430,9 @@ var cf;
             var _this = this;
             cf.ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
             // animate input field in
-            this.visible = !(window.ConversationalForm.dictionary.data['input-disabled-on-select'] && event.detail.elements !== undefined && event.detail.elements[0].type === "radio");
-            this._currentTag = event.detail.tag;
+            // if the element type is radio button don't show input box 
+            this.visible = !(window.ConversationalForm.dictionary.data['input-disabled-on-select'] && event.detail.type === "group" && event.detail.elements[0].type === "radio");
+            this._currentTag = event.detail;
             this.el.setAttribute("tag-type", this._currentTag.type);
             // set input field to type password if the dom input field is that, covering up the input
             this.inputElement.setAttribute("type", this._currentTag.type == "password" ? "password" : "input");
@@ -3536,22 +3481,18 @@ var cf;
                 return;
             if (event.keyCode == cf.Dictionary.keyCodes["shift"])
                 this.shiftIsDown = true;
-            var key = String.fromCharCode(event.keyCode);
             // prevent textarea line breaks
-            if (event.keyCode == cf.Dictionary.keyCodes["enter"] && !event.shiftKey) {
-                event.preventDefault();
+            // if(event.keyCode == Dictionary.keyCodes["enter"] && !event.shiftKey){
+            // 	//event.preventDefault();
+            // }else{
+            // handle password input
+            if (this._currentTag && this._currentTag.type == "password") {
+                if (event.key.toLowerCase() == "backspace")
+                    this.currentValue = this.currentValue.length > 0 ? this.currentValue.slice(0, this.currentValue.length - 1) : "";
+                else
+                    this.currentValue += event.key;
             }
-            else {
-                // handle password input
-                if (this._currentTag && this._currentTag.type == "password") {
-                    if (event.keyCode === cf.Dictionary.keyCodes["backspace"]) {
-                        this.currentValue = this.currentValue.length > 0 ? this.currentValue.slice(0, this.currentValue.length - 1) : "";
-                    }
-                    else {
-                        this.currentValue += key;
-                    }
-                }
-            }
+            // }
         };
         UserInput.prototype.onKeyUp = function (event) {
             if (!this.active && !this.controlElements.focus)
@@ -3596,7 +3537,13 @@ var cf;
             if ((event.keyCode == cf.Dictionary.keyCodes["enter"] && !event.shiftKey) || event.keyCode == cf.Dictionary.keyCodes["space"]) {
                 if (event.keyCode == cf.Dictionary.keyCodes["enter"] && this.active) {
                     event.preventDefault();
-                    this.onEnterOrSubmitButtonSubmit();
+                    var tagType = this._currentTag.type == "group" ? this._currentTag.getGroupTagType() : this._currentTag.type;
+                    if ((tagType == "select" || tagType == "checkbox") || this._currentTag.domElement.localName == "input") {
+                        this.onEnterOrSubmitButtonSubmit();
+                    }
+                    else {
+                        this.inputElement.value = this.inputElement.value + "\n";
+                    }
                 }
                 else {
                     // either click on submit button or do something with control elements
@@ -3806,7 +3753,9 @@ var cf;
             }
             var isThinking = this.textEl.hasAttribute("thinking");
             if (!dto) {
-                this.setToThinking();
+                //this.setToThinking();
+                this.el.classList.remove("show");
+                this.textEl.removeAttribute('thinking');
             }
             else {
                 this.response = dto.text;
@@ -3837,7 +3786,9 @@ var cf;
             this.el.classList.add("show");
             this.disabled = false;
             if (!this.response) {
-                this.setToThinking();
+                //this.setToThinking();
+                this.el.classList.remove("show");
+                this.textEl.removeAttribute('thinking');
             }
             else {
                 this.checkForEditMode();
@@ -3904,7 +3855,9 @@ var cf;
         * click handler for el
         */
         ChatResponse.prototype.onClick = function (event) {
-            this.setToThinking();
+            //this.setToThinking();
+            this.el.classList.remove("show");
+            this.textEl.removeAttribute('thinking');
             cf.ConversationalForm.illustrateFlow(this, "dispatch", cf.ChatResponseEvents.USER_ANSWER_CLICKED, event);
             this.eventTarget.dispatchEvent(new CustomEvent(cf.ChatResponseEvents.USER_ANSWER_CLICKED, {
                 detail: this._tag
@@ -4001,19 +3954,19 @@ var cf;
         };
         ChatList.prototype.onFlowUpdate = function (event) {
             cf.ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
-            var currentTag = event.detail.tag;
+            var currentTag = event.detail;
             if (this.currentResponse)
                 this.currentResponse.disabled = false;
-            if (this.containsTagResponse(currentTag) && !event.detail.ignoreExistingTag) {
-                // because user maybe have scrolled up and wants to edit
+            if (this.containsTagResponse(currentTag)) {
+                // because user maybe have scrolled up
                 // tag is already in list, so re-activate it
-                this.onUserWantsToEditTag(currentTag);
+                this.onUserWantToEditPreviousAnswer(currentTag);
             }
             else {
                 // robot response
                 var robot = this.createResponse(true, currentTag, currentTag.question);
                 if (this.currentUserResponse) {
-                    // linked, but only if we should not ignore existing tag
+                    // linked
                     this.currentUserResponse.setLinkToOtherReponse(robot);
                     robot.setLinkToOtherReponse(this.currentUserResponse);
                 }
@@ -4039,7 +3992,7 @@ var cf;
         * @name onUserAnswerClicked
         * on user ChatReponse clicked
         */
-        ChatList.prototype.onUserWantsToEditTag = function (tagToChange) {
+        ChatList.prototype.onUserWantToEditPreviousAnswer = function (tagToChange) {
             var oldReponse;
             for (var i = 0; i < this.responses.length; i++) {
                 var element = this.responses[i];
@@ -4160,23 +4113,23 @@ var cf;
     // class
     var FlowManager = (function () {
         function FlowManager(options) {
+            var _this = this;
             this.stopped = false;
             this.maxSteps = 0;
             this.step = 0;
             this.savedStep = -1;
             this.stepTimer = 0;
-            /**
-            * ignoreExistingTags
-            * @type boolean
-            * ignore existing tags, usually this is set to true when using startFrom, where you don't want it to check for exisintg tags in the list
-            */
-            this.ignoreExistingTags = false;
             this.cfReference = options.cfReference;
             this.eventTarget = options.eventTarget;
-            this.setTags(options.tags);
+            this.tags = options.tags;
             this.maxSteps = this.tags.length;
-            this.userInputSubmitCallback = this.userInputSubmit.bind(this);
-            this.eventTarget.addEventListener(cf.UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
+            if (!this.currentTag.empty_answer) {
+                this.userInputSubmitCallback = this.userInputSubmit.bind(this);
+                this.eventTarget.addEventListener(cf.UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
+            }
+            else {
+                setTimeout(function () { return _this.nextStep(); }, cf.ConversationalForm.animationsEnabled ? 250 : 0);
+            }
         }
         Object.defineProperty(FlowManager.prototype, "currentTag", {
             get: function () {
@@ -4249,22 +4202,14 @@ var cf;
             // TODO, make into promises when IE is rolling with it..
             onValidationCallback();
         };
-        FlowManager.prototype.startFrom = function (indexOrTag, ignoreExistingTags) {
-            if (ignoreExistingTags === void 0) { ignoreExistingTags = false; }
+        FlowManager.prototype.startFrom = function (indexOrTag) {
             if (typeof indexOrTag == "number")
                 this.step = indexOrTag;
             else {
                 // find the index..
                 this.step = this.tags.indexOf(indexOrTag);
             }
-            this.ignoreExistingTags = ignoreExistingTags;
-            if (!this.ignoreExistingTags) {
-                this.editTag(this.tags[this.step]);
-            }
-            else {
-                //validate step, and ask for skipping of current step
-                this.showStep();
-            }
+            this.validateStepAndUpdate();
         };
         FlowManager.prototype.start = function () {
             this.stopped = false;
@@ -4297,17 +4242,9 @@ var cf;
         * go back in time and edit a tag.
         */
         FlowManager.prototype.editTag = function (tag) {
-            this.ignoreExistingTags = false;
             this.savedStep = this.step - 1;
             this.step = this.tags.indexOf(tag); // === this.currentTag
             this.validateStepAndUpdate();
-        };
-        FlowManager.prototype.setTags = function (tags) {
-            this.tags = tags;
-            for (var i = 0; i < this.tags.length; i++) {
-                var tag = this.tags[i];
-                tag.eventTarget = this.eventTarget;
-            }
         };
         FlowManager.prototype.skipStep = function () {
             this.nextStep();
@@ -4336,10 +4273,7 @@ var cf;
             cf.ConversationalForm.illustrateFlow(this, "dispatch", cf.FlowEvents.FLOW_UPDATE, this.currentTag);
             this.currentTag.refresh();
             this.eventTarget.dispatchEvent(new CustomEvent(cf.FlowEvents.FLOW_UPDATE, {
-                detail: {
-                    tag: this.currentTag,
-                    ignoreExistingTag: this.ignoreExistingTags
-                }
+                detail: this.currentTag
             }));
         };
         return FlowManager;
