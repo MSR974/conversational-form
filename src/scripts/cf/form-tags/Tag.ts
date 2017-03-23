@@ -36,7 +36,7 @@ namespace cf {
 		required: boolean;
 		defaultValue: string | number;
 		disabled: boolean;
-
+		empty_answer: boolean;
 		validationCallback?(dto: FlowDTO, success: () => void, error: (optionalErrorMessage?: string) => void): void;
 	}
 
@@ -62,6 +62,10 @@ namespace cf {
 		protected questions: Array<string>; // can also be set through cf-questions attribute.
 
 		public validationCallback?: (dto: FlowDTO, success: () => void, error: (optionalErrorMessage?: string) => void) => void; // can be set through cf-validation attribute, get's called from FlowManager
+
+		public get empty_answer(): boolean {
+			return this.domElement.hasAttribute('cf-empty-answer');
+		}
 
 		public get type (): string{
 			return this.domElement.getAttribute("type") || this.domElement.tagName.toLowerCase();

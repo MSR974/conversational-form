@@ -359,7 +359,6 @@ namespace cf {
 				if(event.keyCode == Dictionary.keyCodes["enter"] && this.active){
 					event.preventDefault();
 					const tagType: string = this._currentTag.type == "group" ? (<TagGroup>this._currentTag).getGroupTagType() : this._currentTag.type;
-					console.log("onKeyUp tagType", tagType);
 					if ((tagType == "select" || tagType == "checkbox") || this._currentTag.domElement.localName == "input") {
 						this.onEnterOrSubmitButtonSubmit();
 					} else {

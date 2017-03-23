@@ -53,8 +53,12 @@ namespace cf {
 
 			this.maxSteps = this.tags.length;
 
-			this.userInputSubmitCallback = this.userInputSubmit.bind(this);
-			this.eventTarget.addEventListener(UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
+			if (!this.currentTag.empty_answer) {
+				this.userInputSubmitCallback = this.userInputSubmit.bind(this);
+				this.eventTarget.addEventListener(UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
+			} else {
+				setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
+			}
 		}
 
 		public userInputSubmit(event: CustomEvent){
@@ -110,11 +114,9 @@ namespace cf {
 
 					// update to latest DTO because values can be changed in validation flow...
 					appDTO = appDTO.input.getFlowDTO();
-
 					this.eventTarget.dispatchEvent(new CustomEvent(FlowEvents.USER_INPUT_UPDATE, {
 						detail: appDTO //UserInput value
 					}));
-
 					// goto next step when user has answered
 					setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
 				}else{

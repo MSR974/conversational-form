@@ -47,6 +47,7 @@ typescript
 					this.el.classList.remove("show");
 					this.textEl.removeAttribute('thinking');
 
+
 			=> remove inputbox when radio button
 				-> modified in private onFlowUpdate(event: CustomEvent) in UserInput.ts
 				// animate input field in
@@ -56,3 +57,77 @@ typescript
 
 				// animate input field in
 				this.visible = !(window.ConversationalForm.dictionary.data['input-disabled-on-select'] && event.detail.elements !== undefined && event.detail.elements[0].type === "radio");
+
+
+			=> newline when enter button is pressed
+				=> modified function onKeyUp(event: KeyboardEvent) in UserInputs.ts
+
+				if(event.keyCode == Dictionary.keyCodes["enter"] && this.active) {
+					event.preventDefault();
+					const tagType: string = this._currentTag.type == "group" ? (<TagGroup>this._currentTag).getGroupTagType() : this._currentTag.type;
+
+					if (tagType == "select" || tagType == "checkbox") {
+						this.onEnterOrSubmitButtonSubmit();
+					} else {
+						this.inputElement.value = this.inputElement.value + "\n";
+					}
+				}
+
+
+			=> trim spaces and newline
+				=> modified function getInputValue():string in UserInputs.ts
+
+					const str: string = this.inputElement.value.replace(/^\s+|\s+$/g, '').trim();
+
+			=> differenciation between input and textarea
+			   => modified in UserInput.ts onKeyUp
+			      from:
+				if(event.keyCode == Dictionary.keyCodes["enter"] && this.active) {
+					event.preventDefault();
+					const tagType: string = this._currentTag.type == "group" ? (<TagGroup>this._currentTag).getGroupTagType() : this._currentTag.type;
+
+					if (tagType == "select" || tagType == "checkbox") {
+						this.onEnterOrSubmitButtonSubmit();
+					} else {
+						this.inputElement.value = this.inputElement.value + "\n";
+					}
+				}
+				to:
+				
+				if(event.keyCode == Dictionary.keyCodes["enter"] && this.active) {
+					event.preventDefault();
+					const tagType: string = this._currentTag.type == "group" ? (<TagGroup>this._currentTag).getGroupTagType() : this._currentTag.type;
+
+					if ((tagType == "select" || tagType == "checkbox") || this._currentTag.domElement.localName == "input"
+						this.onEnterOrSubmitButtonSubmit();
+					} else {
+						this.inputElement.value = this.inputElement.value + "\n";
+					}
+				}
+
+
+			=> show question but skip user answer
+			   	=> added in Tag.ts and TagGroup.ts
+				   export interface ITag{
+				   ...
+					empty_answer: boolean;
+				   }
+
+				   export class Tag implements ITag {
+				   	public get empty_answer(): boolean {
+					       return this.domElement.hasAttribute('cf-empty-answer');
+					}
+				   }
+				 => modified in FlowManager.ts constructor
+				  from:
+					this.userInputSubmitCallback = this.userInputSubmit.bind(this);
+					this.eventTarget.addEventListener(UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
+				   
+				  to:
+				   
+				 	if (!this.currentTag.empty_answer) {
+					   this.userInputSubmitCallback = this.userInputSubmit.bind(this);
+					   this.eventTarget.addEventListener(UserInputEvents.SUBMIT, this.userInputSubmitCallback, false);
+					} else {
+					   setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
+					}
