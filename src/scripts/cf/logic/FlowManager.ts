@@ -23,7 +23,7 @@ namespace cf {
 		//	detail: string
 		FLOW_UPDATE: "cf-flow-update",
 		//	detail: ITag | ITagGroup
-	}
+	};
 
 	// class
 	export class FlowManager {
@@ -39,6 +39,7 @@ namespace cf {
 		private maxSteps: number = 0;
 		private step: number = 0;
 		private savedStep: number = -1;
+		private maxReachedStep: number = 0;
 		private stepTimer: number = 0;
 		private userInputSubmitCallback: () => void;
 
@@ -106,7 +107,7 @@ namespace cf {
 				// go on with the flow
 				if(isTagValid){
 					// do the normal flow..
-					ConversationalForm.illustrateFlow(this, "dispatch", FlowEvents.USER_INPUT_UPDATE, appDTO)
+					ConversationalForm.illustrateFlow(this, "dispatch", FlowEvents.USER_INPUT_UPDATE, appDTO);
 
 					// update to latest DTO because values can be changed in validation flow...
 					appDTO = appDTO.input.getFlowDTO();
@@ -116,7 +117,7 @@ namespace cf {
 					// goto next step when user has answered
 					setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
 				}else{
-					ConversationalForm.illustrateFlow(this, "dispatch", FlowEvents.USER_INPUT_INVALID, appDTO)
+					ConversationalForm.illustrateFlow(this, "dispatch", FlowEvents.USER_INPUT_INVALID, appDTO);
 
 					// Value not valid
 					this.eventTarget.dispatchEvent(new CustomEvent(FlowEvents.USER_INPUT_INVALID, {
@@ -151,7 +152,7 @@ namespace cf {
 
 		public nextStep(){
 			if(this.savedStep != -1)
-				this.step = this.savedStep;
+				this.step = this.maxReachedStep;
 			
 			this.savedStep = -1;//reset saved step
 
@@ -191,19 +192,22 @@ namespace cf {
 		private validateStepAndUpdate(){
 			if(this.maxSteps > 0){
 				if(this.step == this.maxSteps){
-					console.warn("We are at the end..., submit click")
+					console.warn("We are at the end..., submit click");
 					this.cfReference.doSubmitForm();
 				}else{
-					console.log("currentTag, step, empty_answer", this.tags[this.step], this.step, this.tags[this.step].empty_answer);
 					this.step %= this.maxSteps;
+					
+					if (this.step <= this.maxSteps && this.step > this.maxReachedStep) {
+						this.maxReachedStep = this.step - 1;
+					}
 
-					if (this.tags[this.step].empty_answer) {
+					if (this.currentTag && this.currentTag.empty_answer) {
 						// if current tag shouldn't wait for an answer go to next step
-						this.savedStep = this.step;
+						//this.savedStep = this.step;
 						setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
 					}
 
-					if(this.currentTag.disabled){
+					if(this.currentTag && this.currentTag.disabled){
 						// check if current tag has become or is disabled, if it is, then skip step.
 						this.skipStep();
 					}else{

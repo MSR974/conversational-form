@@ -50,6 +50,10 @@ namespace cf {
 			return false;
 		}
 
+		public get is_multiline(): boolean {
+			return false;
+		}
+
 		public get empty_answer(): boolean {
 			return false;
 		}

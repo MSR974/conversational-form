@@ -14,7 +14,7 @@ namespace cf {
 
 	export const ChatResponseEvents = {
 		USER_ANSWER_CLICKED: "cf-on-user-answer-clicked",
-	}
+	};
 
 	// class
 	export class ChatResponse extends BasicElement {
@@ -26,7 +26,7 @@ namespace cf {
 		public parsedResponse: string;
 		private textEl: Element;
 		private image: string;
-		private _tag: ITag
+		private _tag: ITag;
 		private responseLink: ChatResponse; // robot reference from use
 
 		private onClickCallback: () => void;
@@ -41,6 +41,10 @@ namespace cf {
 
 		public set disabled(value : boolean) {
 			this.el.classList.toggle("disabled", value);
+		}
+
+		public get visible(): boolean {
+			return this.el.classList.contains("show");
 		}
 
 		public set visible(value: boolean){
@@ -101,10 +105,14 @@ namespace cf {
 		public show(){
 			this.el.classList.add("show");
 			this.disabled = false;
+			
 			if(!this.response){
-				//this.setToThinking();
-				this.el.classList.remove("show");
-				this.textEl.removeAttribute('thinking');
+				if (this.isRobotReponse) {
+					this.setToThinking();
+				} else {
+					this.el.classList.remove("show");
+					this.textEl.removeAttribute('thinking');
+				}
 			}else{
 				this.checkForEditMode();
 			}
@@ -124,7 +132,7 @@ namespace cf {
 
 		public processResponseAndSetText(): string{
 			var innerResponse: string = this.response;
-			
+		
 			if(this._tag && this._tag.type == "password" && !this.isRobotReponse){
 				var newStr: string = "";
 				for (let i = 0; i < innerResponse.length; i++) {
@@ -161,8 +169,11 @@ namespace cf {
 				this.textEl.setAttribute("value-added", "");
 			}, 0);
 
-			this.checkForEditMode();
-
+			if (this._tag && !this._tag.empty_answer) {
+				this.checkForEditMode();
+			} else {
+				this.disabled = true;
+			}
 			return innerResponse;
 		}
 
@@ -184,9 +195,10 @@ namespace cf {
 		* click handler for el
 		*/
 		private onClick(event: MouseEvent): void {
-			//this.setToThinking();
-			this.el.classList.remove("show");
-			this.textEl.removeAttribute('thinking');
+			this.setToThinking();
+
+			// this.el.classList.remove("show");
+			// this.textEl.removeAttribute('thinking');
 			ConversationalForm.illustrateFlow(this, "dispatch", ChatResponseEvents.USER_ANSWER_CLICKED, event);
 			this.eventTarget.dispatchEvent(new CustomEvent(ChatResponseEvents.USER_ANSWER_CLICKED, {
 				detail: this._tag
@@ -205,12 +217,16 @@ namespace cf {
 				if(this.isRobotReponse || options.response != null){
 					// Robot is pseudo thinking, can also be user -->
 					// , but if addUserChatResponse is called from ConversationalForm, then the value is there, therefore skip ...
-					setTimeout(() => this.setValue(<FlowDTO>{text: options.response}), 0);//ConversationalForm.animationsEnabled ? Helpers.lerp(Math.random(), 500, 900) : 0);
-				}else{
-					// shows the 3 dots automatically, we expect the reponse to be empty upon creation
-					// TODO: Auto completion insertion point
-					setTimeout(() => this.el.classList.add("peak-thumb"), ConversationalForm.animationsEnabled ? 1400 : 0);
+					setTimeout(() => {
+						this.el.classList.add("peak-thumb");
+						this.setValue(<FlowDTO>{text: options.response});
+					}, ConversationalForm.animationsEnabled ? 1400 : 0);
+					//ConversationalForm.animationsEnabled ? Helpers.lerp(Math.random(), 500, 900) : 0);
 				}
+				//else{
+                // shows the 3 dots automatically, we expect the reponse to be empty upon creation
+                // TODO: Auto completion insertion point
+				// }
 			}, 0);
 		}
 

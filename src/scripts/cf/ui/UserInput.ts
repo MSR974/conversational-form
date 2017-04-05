@@ -25,7 +25,7 @@ namespace cf {
 
 		CONTROL_ELEMENTS_ADDED: "cf-input-control-elements-added",
 		//	detail: string
-	}
+	};
 
 	// class
 	export class UserInput extends BasicElement {
@@ -55,7 +55,7 @@ namespace cf {
 		private controlElements: ControlElements;
 		private _currentTag: ITag | ITagGroup;
 
-		//acts as a fallb ack for ex. shadow dom implementation
+		//acts as a fallback for ex. shadow dom implementation
 		private _active: boolean = false;
 		public get active(): boolean{
 			return this.inputElement === document.activeElement || this._active;
@@ -293,9 +293,10 @@ namespace cf {
 				this.shiftIsDown = true;
 			
 			// prevent textarea line breaks
-			// if(event.keyCode == Dictionary.keyCodes["enter"] && !event.shiftKey){
-			// 	//event.preventDefault();
-			// }else{
+			if(event.keyCode == Dictionary.keyCodes["enter"] && !event.shiftKey){
+				event.preventDefault();
+			}
+			//else{
 				// handle password input
 			if(this._currentTag && this._currentTag.type == "password"){
 				if(event.key.toLowerCase() == "backspace")
@@ -357,10 +358,16 @@ namespace cf {
 				if(event.keyCode == Dictionary.keyCodes["enter"] && this.active){
 					event.preventDefault();
 					const tagType: string = this._currentTag.type == "group" ? (<TagGroup>this._currentTag).getGroupTagType() : this._currentTag.type;
-					if ((tagType == "select" || tagType == "checkbox") || this._currentTag.domElement.localName == "input") {
+					console.log("thi.currentTag.is_multiline", this._currentTag.is_multiline);
+					
+					if ((tagType == "select" || tagType == "checkbox") || !this._currentTag.is_multiline) {
+						//console.log("enter submit");
 						this.onEnterOrSubmitButtonSubmit();
 					} else {
-						this.inputElement.value = this.inputElement.value + "\n";
+						// this.shiftIsDown = true;
+						// console.log("enter pas submit", this.inputElement);
+						this.inputElement.value = this.inputElement.value + "\n;";
+						//this.dispatchKeyChange(value, event.keyCode);
 					}
 				}else{
 					// either click on submit button or do something with control elements

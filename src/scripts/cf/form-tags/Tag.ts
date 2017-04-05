@@ -37,6 +37,7 @@ namespace cf {
 		defaultValue: string | number;
 		disabled: boolean;
 		empty_answer: boolean;
+		is_multiline: boolean;
 		validationCallback?(dto: FlowDTO, success: () => void, error: (optionalErrorMessage?: string) => void): void;
 	}
 
@@ -62,6 +63,10 @@ namespace cf {
 		protected questions: Array<string>; // can also be set through cf-questions attribute.
 
 		public validationCallback?: (dto: FlowDTO, success: () => void, error: (optionalErrorMessage?: string) => void) => void; // can be set through cf-validation attribute, get's called from FlowManager
+
+		public get is_multiline(): boolean {
+			return this.domElement.hasAttribute('cf-multiline');
+		}
 
 		public get empty_answer(): boolean {
 			return this.domElement.hasAttribute('cf-empty-answer');

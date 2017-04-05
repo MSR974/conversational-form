@@ -7,7 +7,7 @@ namespace cf {
 	// interface
 	export const ChatListEvents = {
 		CHATLIST_UPDATED: "cf-chatlist-updated"
-	}
+	};
 
 	// class
 	export class ChatList extends BasicElement {
@@ -102,6 +102,7 @@ namespace cf {
 		*/
 		private onUserWantToEditPreviousAnswer(tagToChange: ITag): void {
 			let oldReponse: ChatResponse;
+
 			for (let i = 0; i < this.responses.length; i++) {
 				let element: ChatResponse = <ChatResponse>this.responses[i];
 				if(!element.isRobotReponse && element.tag == tagToChange){
@@ -119,7 +120,6 @@ namespace cf {
 				if(this.currentUserResponse == this.responses[this.responses.length - 1]){
 					this.currentUserResponse.hide();
 				}
-
 				this.currentUserResponse = oldReponse;
 
 				this.onListUpdate(this.currentUserResponse);
@@ -152,7 +152,7 @@ namespace cf {
 				}else if(dto.input.currentTag.type != "password")
 					this.flowDTOFromUserInputUpdate.text = Dictionary.get("user-reponse-missing");
 			}
-
+			
 			this.currentUserResponse.setValue(this.flowDTOFromUserInputUpdate);
 			this.scrollListTo();
 		}
@@ -172,24 +172,26 @@ namespace cf {
 		}
 
 		public createResponse(isRobotReponse: boolean, currentTag: ITag, value: string = null) : ChatResponse{
+			let lastResponse: ChatResponse = this.responses[this.responses.length - 1];
+
 			const response: ChatResponse = new ChatResponse({
 				// image: null,
 				tag: currentTag,
 				eventTarget: this.eventTarget,
 				isRobotReponse: isRobotReponse,
 				response: value,
-				image: isRobotReponse ? Dictionary.getRobotResponse("robot-image") : Dictionary.get("user-image"),
+				image: isRobotReponse ? ((lastResponse && lastResponse.tag && lastResponse.tag.empty_answer) ? "" : Dictionary.getRobotResponse("robot-image")) : Dictionary.get("user-image"),
 			});
 
-			this.responses.push(response);
+			if (isRobotReponse || (!isRobotReponse && currentTag && !currentTag.empty_answer) || currentTag === null) {
+				this.responses.push(response);
+				this.currentResponse = response;
 
-			this.currentResponse = response;
+				const scrollable: HTMLElement = <HTMLElement> this.el.querySelector("scrollable");
+				scrollable.appendChild(this.currentResponse.el);
 
-			const scrollable: HTMLElement = <HTMLElement> this.el.querySelector("scrollable");
-			scrollable.appendChild(this.currentResponse.el);
-
-			this.onListUpdate(response);
-
+				this.onListUpdate(response);
+			}
 			return response;
 		}
 
