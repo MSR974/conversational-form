@@ -71,9 +71,7 @@ namespace cf {
 		public version: string = "0.9.3";
 
 		public static animationsEnabled: boolean = true;
-		public static illustrateAppFlow: boolean = true;
 
-		private cdnPath: string = "//conversational-form-{version}-0iznjsw.stackpathdns.com/";
 		/**
 		 * createId
 		 * Id of the instance, to isolate events
@@ -117,8 +115,6 @@ namespace cf {
 		constructor(options: ConversationalFormOptions){
 			window.ConversationalForm = this;
 
-			this.cdnPath = this.cdnPath.split("{version}").join(this.version.split(".").join(""));
-
 			console.log('Conversational Form > version:', this.version);
 
 			window.ConversationalForm[this.createId] = this;
@@ -131,9 +127,7 @@ namespace cf {
 			if(options.flowStepCallback)
 				this.flowStepCallback = options.flowStepCallback;
 			
-			this.isDevelopment = ConversationalForm.illustrateAppFlow = !!document.getElementById("conversational-form-development");
-			
-			if(this.isDevelopment || options.loadExternalStyleSheet == false){
+			if(document.getElementById("conversational-form-development") || options.loadExternalStyleSheet == false){
 				this.loadExternalStyleSheet = false;
 			}
 
@@ -332,7 +326,8 @@ namespace cf {
 				if(tag.type == "radio" || tag.type == "checkbox"){
 					if(!groups[tag.name])
 						groups[tag.name] = [];
-
+					
+					console.log((<any>this.constructor).name, 'tag.name]:', tag.name);
 					groups[tag.name].push(tag);
 				}
 			}
@@ -361,6 +356,9 @@ namespace cf {
 		}
 
 		private setupUI(){
+			console.log('Conversational Form > start > mapped DOM tags:', this.tags);
+			console.log('----------------------------------------------');
+
 			// start the flow
 			this.flowManager = new FlowManager({
 				cfReference: this,
@@ -472,10 +470,9 @@ namespace cf {
 		/**
 		* @name remapTagsAndStartFrom
 		* index: number, what index to start from
-		* setCurrentTagValue: boolean, usually this method is called when wanting to loop or skip over questions, therefore it might be usefull to set the value of the current tag before changing index.
-		* ignoreExistingTags: boolean, possible to ignore existing tags, to allow for the flow to just "happen"
+		* setCurrentTagValue: boolean, usually this method is called when wanting to loop or skip over questions, therefore it might be usefull to set the valie of the current tag before changing index.
 		*/
-		public remapTagsAndStartFrom(index: number = 0, setCurrentTagValue: boolean = false, ignoreExistingTags: boolean = false){
+		public remapTagsAndStartFrom(index: number = 0, setCurrentTagValue: boolean = false){
 			if(setCurrentTagValue){
 				this.chatList.setCurrentUserResponse(this.userInput.getFlowDTO());
 			}
@@ -485,7 +482,7 @@ namespace cf {
 				tag.refresh();
 			}
 
-			this.flowManager.startFrom(index, ignoreExistingTags);
+			this.flowManager.startFrom(index);
 		}
 
 		/**
@@ -551,12 +548,13 @@ namespace cf {
 		}
 
 		// to illustrate the event flow of the app
+		public static ILLUSTRATE_APP_FLOW: boolean = true;
 		public static illustrateFlow(classRef: any, type: string, eventType: string, detail: any = null){
 			// ConversationalForm.illustrateFlow(this, "dispatch", FlowEvents.USER_INPUT_INVALID, event.detail);
 			// ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
 
-			if(ConversationalForm.illustrateAppFlow){
-				const highlight: string = "font-weight: 900; background: "+(type == "receive" ? "#e6f3fe" : "pink")+"; color: black; padding: 0px 5px;";
+			if(ConversationalForm.ILLUSTRATE_APP_FLOW && navigator.appName != 'Netscape'){
+				const highlight: string = "font-weight: 900; background: pink; color: black; padding: 0px 5px;";
 				console.log("%c** event flow: %c" + eventType + "%c flow type: %c" + type + "%c from: %c"+(<any> classRef.constructor).name, "font-weight: 900;",highlight, "font-weight: 400;", highlight, "font-weight: 400;", highlight);
 				if(detail)
 					console.log("** event flow detail:", detail);
@@ -598,13 +596,7 @@ namespace cf {
 				return;
 
 			// auto start the conversation
-			let formElements: NodeListOf<Element> = document.querySelectorAll("form[cf-form]");
-
-			// no form elements found, look for the old init attribute
-			if(formElements.length === 0){
-				formElements = document.querySelectorAll("form[cf-form-element]");
-			}
-
+			const formElements: NodeListOf<Element> = document.querySelectorAll("form[cf-form]") || document.querySelectorAll("form[cf-form-element]");
 			const formContexts: NodeListOf<Element> = document.querySelectorAll("*[cf-context]");
 
 			if(formElements && formElements.length > 0){
@@ -626,7 +618,7 @@ namespace cf {
 
 if(document.readyState == "complete"){
 	// if document alread instantiated, usually this happens if Conversational Form is injected through JS
-	setTimeout(() => cf.ConversationalForm.autoStartTheConversation(), 0);
+	cf.ConversationalForm.autoStartTheConversation();
 }else{
 	// await for when document is ready
 	window.addEventListener("load", () =>{

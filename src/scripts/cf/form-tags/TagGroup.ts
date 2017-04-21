@@ -35,9 +35,7 @@ namespace cf {
 		* Array checked/choosen ITag's
 		*/
 		private _activeElements: Array<ITag>;
-		private _eventTarget: EventDispatcher;
 
-		// event target..
 		public defaultValue: string; // not getting set... as taggroup differs from tag
 		public elements: Array <ITag>;
 		
@@ -52,12 +50,12 @@ namespace cf {
 			return false;
 		}
 
-		public set eventTarget(value: EventDispatcher){
-			this._eventTarget = value;
-			for (let i = 0; i < this.elements.length; i++) {
-				let tag: ITag = <ITag>this.elements[i];
-				tag.eventTarget = value;
-			}
+		public get is_multiline(): boolean {
+			return false;
+		}
+
+		public get empty_answer(): boolean {
+			return false;
 		}
 
 		public get type (): string{
@@ -118,8 +116,7 @@ namespace cf {
 
 		constructor(options: ITagGroupOptions){
 			this.elements = options.elements;
-			if(ConversationalForm.illustrateAppFlow)
-				console.log('Conversational Form > TagGroup registered:', this.elements[0].type, this);
+			console.log('TagGroup registered:', this.elements[0].type, this);
 		}
 
 		public dealloc(){

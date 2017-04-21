@@ -7,6 +7,7 @@
 /// <reference path="../logic/EventDispatcher.ts"/>
 /// <reference path="../parsing/TagsParser.ts"/>
 
+
 // basic tag from form logic
 // types:
 // radio
@@ -38,18 +39,9 @@ namespace cf {
 		required: boolean;
 		defaultValue: string | number;
 		disabled: boolean;
-		eventTarget: EventDispatcher;
-
+		empty_answer: boolean;
+		is_multiline: boolean;
 		validationCallback?(dto: FlowDTO, success: () => void, error: (optionalErrorMessage?: string) => void): void;
-	}
-
-	export const TagEvents = {
-		ORIGINAL_ELEMENT_CHANGED: "cf-tag-dom-element-changed"
-	}
-
-	export interface TagChangeDTO{
-		tag: ITag,
-		value: String
 	}
 
 	export interface ITagOptions{
@@ -65,18 +57,23 @@ namespace cf {
 		
 		private errorMessages: Array<string>;
 		private pattern: RegExp;
-		private changeCallback: () => void;
-		protected _eventTarget: EventDispatcher;
 
 		// input placeholder text, this is for the UserInput and not the tag it self.
 		protected _inputPlaceholder: string;
 
-		// 
 		public defaultValue: string | number;
 		protected _label: string;
 		protected questions: Array<string>; // can also be set through cf-questions attribute.
 
 		public validationCallback?: (dto: FlowDTO, success: () => void, error: (optionalErrorMessage?: string) => void) => void; // can be set through cf-validation attribute, get's called from FlowManager
+
+		public get is_multiline(): boolean {
+			return this.domElement.hasAttribute('cf-multiline');
+		}
+
+		public get empty_answer(): boolean {
+			return this.domElement.hasAttribute('cf-empty-answer');
+		}
 
 		public get type (): string{
 			return this.domElement.getAttribute("type") || this.domElement.tagName.toLowerCase();
@@ -122,10 +119,6 @@ namespace cf {
 				return this.questions[Math.floor(Math.random() * this.questions.length)];
 		}
 
-		public set eventTarget(value: EventDispatcher){
-			this._eventTarget = value;
-		}
-
 		public get errorMessage():string{
 			if(!this.errorMessages){
 				// custom tag error messages
@@ -149,9 +142,6 @@ namespace cf {
 
 		constructor(options: ITagOptions){
 			this.domElement = options.domElement;
-
-			this.changeCallback = this.onDomElementChange.bind(this);
-			this.domElement.addEventListener("change", this.changeCallback, false);
 			
 			// remove tabIndex from the dom element.. danger zone... should we or should we not...
 			this.domElement.tabIndex = -1;
@@ -160,6 +150,7 @@ namespace cf {
 			if(options.questions)
 				this.questions = options.questions;
 
+			
 			// custom tag validation
 			if(this.domElement.getAttribute("cf-validation")){
 				// set it through an attribute, danger land with eval
@@ -175,16 +166,14 @@ namespace cf {
 			// 	this.pattern = new RegExp("^[^@]+@[^@]+\.[^@]+$");
 			// }
 
-			if(this.type != "group" && ConversationalForm.illustrateAppFlow){
-				console.log('Conversational Form > Tag registered:', this.type, this);
+			if(this.type != "group"){
+				console.log('Conversational Form > Tag registered:', this.type);
 			}
 
 			this.refresh();
 		}
 
 		public dealloc(){
-			this.domElement.removeEventListener("change", this.changeCallback, false);
-			this.changeCallback = null
 			this.domElement = null;
 			this.defaultValue = null;
 			this.errorMessages = null;
@@ -373,19 +362,6 @@ namespace cf {
 						this._label = Helpers.getInnerTextOfElement(labelTags[0]);
 				}
 			}
-		}
-
-		/**
-		* @name onDomElementChange
-		* on dom element value change event, ex. w. browser autocomplete mode
-		*/
-		private onDomElementChange(): void {
-			this._eventTarget.dispatchEvent(new CustomEvent(TagEvents.ORIGINAL_ELEMENT_CHANGED, {
-				detail: <TagChangeDTO> {
-					value: this.value,
-					tag: this
-				}
-			}));
 		}
 	}
 }

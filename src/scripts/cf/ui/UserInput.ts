@@ -20,6 +20,7 @@ namespace cf {
 		SUBMIT: "cf-input-user-input-submit",
 		KEY_CHANGE: "cf-input-key-change",
 		CONTROL_ELEMENTS_ADDED: "cf-input-control-elements-added",
+
 		HEIGHT_CHANGE: "cf-input-height-change",
 	}
 
@@ -40,7 +41,6 @@ namespace cf {
 		private onSubmitButtonClickCallback: () => void;
 		private onInputFocusCallback: () => void;
 		private onInputBlurCallback: () => void;
-		private onOriginalTagChangedCallback: () => void;
 		private onControlElementProgressChangeCallback: () => void;
 		private errorTimer: number = 0;
 		private initialInputHeight: number = 0;
@@ -52,7 +52,7 @@ namespace cf {
 		private controlElements: ControlElements;
 		private _currentTag: ITag | ITagGroup;
 
-		//acts as a fallb ack for ex. shadow dom implementation
+		//acts as a fallback for ex. shadow dom implementation
 		private _active: boolean = false;
 		public get active(): boolean{
 			return this.inputElement === document.activeElement || this._active;
@@ -115,9 +115,6 @@ namespace cf {
 			this.flowUpdateCallback = this.onFlowUpdate.bind(this);
 			this.eventTarget.addEventListener(FlowEvents.FLOW_UPDATE, this.flowUpdateCallback, false);
 
-			this.onOriginalTagChangedCallback = this.onOriginalTagChanged.bind(this);
-			this.eventTarget.addEventListener(TagEvents.ORIGINAL_ELEMENT_CHANGED, this.onOriginalTagChangedCallback, false);
-
 			this.inputInvalidCallback = this.inputInvalid.bind(this);
 			this.eventTarget.addEventListener(FlowEvents.USER_INPUT_INVALID, this.inputInvalidCallback, false);
 
@@ -133,7 +130,8 @@ namespace cf {
 		}
 
 		public getInputValue():string{
-			const str: string = this.inputElement.value;
+			//const str: string = this.inputElement.value;
+			const str: string = this.inputElement.value.replace(/^\s+|\s+$/g, '').trim();
 
 			// Build-in way to handle XSS issues ->
 			const div = document.createElement('div');
@@ -169,8 +167,7 @@ namespace cf {
 				this.controlElements.clearTagsAndReset();
 			
 			this.disabled = true;
-		}
-
+      
 		/**
 		* @name onOriginalTagChanged
 		* on domElement from a Tag value changed..
@@ -284,12 +281,11 @@ namespace cf {
 
 		private onFlowUpdate(event: CustomEvent){
 			ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
-
 			// animate input field in
-			this.visible = true;
+			// if the element type is radio button don't show input box 
+			this.visible = !(window.ConversationalForm.dictionary.data['input-disabled-on-select'] && event.detail.type === "group" && event.detail.elements[0].type === "radio");
 
-			this._currentTag = <ITag | ITagGroup> event.detail.tag;
-
+			this._currentTag = <ITag | ITagGroup> event.detail;
 			this.el.setAttribute("tag-type", this._currentTag.type);
 
 			// replace textarea and visa versa
@@ -373,6 +369,7 @@ namespace cf {
 			if(event.keyCode == Dictionary.keyCodes["enter"] && !event.shiftKey){
 				event.preventDefault();
 			}
+			// }
 		}
 
 		private onKeyUp(event: KeyboardEvent){
@@ -424,7 +421,18 @@ namespace cf {
 			if((event.keyCode == Dictionary.keyCodes["enter"] && !event.shiftKey) || event.keyCode == Dictionary.keyCodes["space"]){
 				if(event.keyCode == Dictionary.keyCodes["enter"] && this.active){
 					event.preventDefault();
-					this.onEnterOrSubmitButtonSubmit();
+					const tagType: string = this._currentTag.type == "group" ? (<TagGroup>this._currentTag).getGroupTagType() : this._currentTag.type;
+					console.log("thi.currentTag.is_multiline", this._currentTag.is_multiline);
+					
+					if ((tagType == "select" || tagType == "checkbox") || !this._currentTag.is_multiline) {
+						//console.log("enter submit");
+						this.onEnterOrSubmitButtonSubmit();
+					} else {
+						// this.shiftIsDown = true;
+						// console.log("enter pas submit", this.inputElement);
+						this.inputElement.value = this.inputElement.value + "\n;";
+						//this.dispatchKeyChange(value, event.keyCode);
+					}
 				}else{
 					// either click on submit button or do something with control elements
 					if(event.keyCode == Dictionary.keyCodes["enter"] || event.keyCode == Dictionary.keyCodes["space"]){

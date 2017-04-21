@@ -1,0 +1,302 @@
+typescript
+		=> 0.9.0
+			delete thinking points
+			=> added in public setValue(dto: FlowDTO = null) in ChatResponse.ts
+				
+				this.el.classList.remove("show");				
+				
+				context:
+					if(!this.response || this.response.length == 0) {
+						text.setAttribute("thinking", "");
+					
+						this.el.classList.remove("show");
+
+					}
+
+			=> add listener to replace /n to <br> || $(#toto").html($("#toto").html().replace("\n", "<br>"));
+				=> modified now using css ... in index_answer_questions.html
+					
+					text[value-added] {
+						white-space: pre-wrap;
+					}
+
+			=> newline when enter button is pressed
+				=> modified function onKeyUp(event: KeyboardEvent) in UserInputs.ts
+
+				if(event.keyCode == Dictionary.keyCodes["enter"] && this.active) {
+					event.preventDefault();
+					const tagType: string = this._currentTag.type == "group" ? (<TagGroup>this._currentTag).getGroupTagType() : this._currentTag.type;
+
+					if (tagType == "select" || tagType == "checkbox") {
+						this.onEnterOrSubmitButtonSubmit();
+					} else {
+						this.inputElement.value = this.inputElement.value + "\n";
+					}
+				}
+
+			=> trim spaces and newline
+				=> modified function getInputValue():string in UserInputs.ts
+
+					const str: string = this.inputElement.value.replace(/^\s+|\s+$/g, '').trim();
+
+		=> 0.9.1
+			delete thinking points
+			=> in ChatResponse.ts
+					comment //this.setToThinking();
+				and add after each one of them
+					this.el.classList.remove("show");
+					this.textEl.removeAttribute('thinking');
+
+
+			=> remove inputbox when radio button
+				-> modified in private onFlowUpdate(event: CustomEvent) in UserInput.ts
+				// animate input field in
+				this.visible = true;
+
+				to:
+
+				// animate input field in
+				this.visible = !(window.ConversationalForm.dictionary.data['input-disabled-on-select'] && event.detail.elements !== undefined && event.detail.elements[0].type === "radio");
+
+
+			=> newline when enter button is pressed
+				=> modified function onKeyUp(event: KeyboardEvent) in UserInputs.ts
+
+				if(event.keyCode == Dictionary.keyCodes["enter"] && this.active) {
+					event.preventDefault();
+					const tagType: string = this._currentTag.type == "group" ? (<TagGroup>this._currentTag).getGroupTagType() : this._currentTag.type;
+
+					if (tagType == "select" || tagType == "checkbox") {
+						this.onEnterOrSubmitButtonSubmit();
+					} else {
+						this.inputElement.value = this.inputElement.value + "\n";
+					}
+				}
+
+
+			=> trim spaces and newline
+				=> modified function getInputValue():string in UserInputs.ts
+
+					const str: string = this.inputElement.value.replace(/^\s+|\s+$/g, '').trim();
+
+			=> differenciation between input and textarea
+				=> added in Tag.ts
+				    defaultValue: string | number;
+                	disabled: boolean;
+	                empty_answer: boolean;
++					is_multiline: boolean;
+
+ 
++               public get is_multiline(): boolean {
++                       return false;
++               }
++
+               	=> added in TagGroup.ts
+@@ -39,6 +39,7 @@ namespace cf {
+                private maxSteps: number = 0;
+                private step: number = 0;
+                private savedStep: number = -1;
++               private maxReachedStep: number = 0;
+                private stepTimer: number = 0;
+                private userInputSubmitCallback: () => void;
+
+	            => added in FlowManager.ts
++	            	private maxReachedStep: number = 0;
+
+				=> modified in FlowManager.ts
+	                public nextStep(){
+                        if(this.savedStep != -1)
+-	                        this.step = this.savedStep;
++                           this.step = this.maxReachedStep;
+                        this.savedStep = -1;//reset saved step
+
+                => added/modified in FlowManager.ts
+                private validateStepAndUpdate(){
+                        if(this.maxSteps > 0){
+                                if(this.step == this.maxSteps){
+                                        this.cfReference.doSubmitForm();
+                                }else{
+                                        this.step %= this.maxSteps;
++                                       
++                                       if (this.step <= this.maxSteps && this.step > this.maxReachedStep) {
++                                               this.maxReachedStep = this.step - 1;
++                                       }
+ 
+-                                       if (this.tags[this.step].empty_answer) {
++                                       if (this.currentTag && this.currentTag.empty_answer) {
+                                                // if current tag shouldn't wait for an answer go to next step
+-                                               this.savedStep = this.step;
++                                               //this.savedStep = this.step;
+                                                setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
+                                        }
+ 
+-                                       if(this.currentTag.disabled){
++                                       if(this.currentTag && this.currentTag.disabled){
+                                                // check if current tag has become or is disabled, if it is, then skip step.
+                                                this.skipStep();
+                                        }else{
+
+                => added in flowManager.ts
+                @@ -293,9 +297,10 @@ namespace cf {
+                                this.shiftIsDown = true;
+                        
+                        // prevent textarea line breaks
+-                       // if(event.keyCode == Dictionary.keyCodes["enter"] && !event.shiftKey){
+-                       //      //event.preventDefault();
+-                       // }else{
++                       if(event.keyCode == Dictionary.keyCodes["enter"] && !event.shiftKey){
++                               event.preventDefault();
++                       }
++                       //else{
+
+				=>
+-                                       if ((tagType == "select" || tagType == "checkbox")) {
++                                       if ((tagType == "select" || tagType == "checkbox") || !this._currentTag.is_multiline) {
+                                                this.onEnterOrSubmitButtonSubmit();
+                                        } else {
++                                               this.inputElement.value = this.inputElement.value + "\n";
+                                        }
+                => modified in ChatList.ts createResponse
+
+                public createResponse(isRobotReponse: boolean, currentTag: ITag, value: string = null) : ChatResponse{
++                       let lastResponse: ChatResponse = this.responses[this.responses.length - 1];
++
+                        const response: ChatResponse = new ChatResponse({
+                                // image: null,
+                                tag: currentTag,
+                                eventTarget: this.eventTarget,
+                                isRobotReponse: isRobotReponse,
+                                response: value,
+-                               image: isRobotReponse ? Dictionary.getRobotResponse("robot-image") : Dictionary.get("user-image"),
++                               image: isRobotReponse ? ((lastResponse && lastResponse.tag && lastResponse.tag.empty_answer) ? "" : Dictionary.getRobotResponse("robot-image")) : Dictionary.get("user-image"),
+                        });
+ 
+-                       this.responses.push(response);
++                       if (isRobotReponse || (!isRobotReponse && currentTag && !currentTag.empty_answer) || currentTag === null) {
++                               this.responses.push(response);
++                               this.currentResponse = response;
+ 
+-                       this.currentResponse = response;
+-
+-                       const scrollable: HTMLElement = <HTMLElement> this.el.querySelector("scrollable");
+-                       scrollable.appendChild(this.currentResponse.el);
+-
+-                       this.onListUpdate(response);
++                               const scrollable: HTMLElement = <HTMLElement> this.el.querySelector("scrollable");
++                               scrollable.appendChild(this.currentResponse.el);
+ 
++                               this.onListUpdate(response);
++                       }
+                        return response;
+                }
+
+
+			   	=> modified in UserInput.ts onKeyUp
+			      	from:
+						if(event.keyCode == Dictionary.keyCodes["enter"] && this.active) {
+							event.preventDefault();
+							const tagType: string = this._currentTag.type == "group" ? (<TagGroup>this._currentTag).getGroupTagType() : this._currentTag.type;
+
+							if (tagType == "select" || tagType == "checkbox") {
+								this.onEnterOrSubmitButtonSubmit();
+							} else {
+								this.inputElement.value = this.inputElement.value + "\n";
+							}
+						}
+					to:
+						
+						if(event.keyCode == Dictionary.keyCodes["enter"] && this.active) {
+							event.preventDefault();
+							const tagType: string = this._currentTag.type == "group" ? (<TagGroup>this._currentTag).getGroupTagType() : this._currentTag.type;
+
+							if ((tagType == "select" || tagType == "checkbox") || this._currentTag.domElement.localName == "input"
+								this.onEnterOrSubmitButtonSubmit();
+							} else {
+								this.inputElement.value = this.inputElement.value + "\n";
+							}
+						}
+
+
+			=> show question but skip user answer
+			   	=> added in Tag.ts and TagGroup.ts
+				   export interface ITag{
+				   ...
+					empty_answer: boolean;
+				   }
+
+				   export class Tag implements ITag {
+				   	public get empty_answer(): boolean {
+					       return this.domElement.hasAttribute('cf-empty-answer');
+					}
+				   }
+				 => added in FlowManager.ts validateStepAndUpdate function 
+				  
+				   if (this.tags[this.step].empty_answer) {
+						// if current tag shouldn't wait for an answer go to next step
+						this.savedStep = this.step;
+						setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
+					}
+
+			=> unable user to edit cf-empty-answer:
+				=> modified in ChatResponse processResponseAndSetText
+-                       this.checkForEditMode();
+-
++                       if (this._tag && !this._tag.empty_answer) {
++                               this.checkForEditMode();
++                       } else {
++                               this.disabled = true;
++                       }
+                        return innerResponse;
+
+
+			=> show thinking dots before bot message
+				=> added in ChatResponse.ts
+	                public show(){
+                        this.el.classList.add("show");
+                        this.disabled = false;
++                       //  && this.isRobotReponse
+                        if(!this.response){
+-                               //this.setToThinking();
+-                               this.el.classList.remove("show");
+-                               this.textEl.removeAttribute('thinking');
++                               if (this.isRobotReponse) {
++                                       this.setToThinking();
++                               } else {
++                                       this.el.classList.remove("show");
++                                       this.textEl.removeAttribute('thinking');
++                               }
+                        }else{
+                                this.checkForEditMode();
+                        }
+
+
+            => show thinking dots when user is editing his own message
+            	=> uncommented this.SetToThinking in ChatResponse.ts onClick
+            	   private onClick(event: MouseEvent): void {
+-                       //this.setToThinking();
+-                       this.el.classList.remove("show");
+-                       this.textEl.removeAttribute('thinking');
++                       this.setToThinking();
+
+
+			=> show user image after user response
+	            if(this.isRobotReponse || options.response != null){
+	                // Robot is pseudo thinking, can also be user -->
+	                // , but if addUserChatResponse is called from ConversationalForm, then the value is there, therefore skip ...
+-                  setTimeout(() => this.setValue(<FlowDTO>{text: options.response}), 0);//ConversationalForm.animationsEnabled ? Helpers.lerp(Math.random(), 500, 900) : 0);
+-                               }else{
+-                                       // shows the 3 dots automatically, we expect the reponse to be empty upon creation
+-                                       // TODO: Auto completion insertion point
+-                                       setTimeout(() => this.el.classList.add("peak-thumb"), ConversationalForm.animationsEnabled ? 1400 : 0);
++                                       setTimeout(() => {
++                                               this.el.classList.add("peak-thumb");
++                                               this.setValue(<FlowDTO>{text: options.response});
++                                       }, ConversationalForm.animationsEnabled ? 1400 : 0);
++                                       //ConversationalForm.animationsEnabled ? Helpers.lerp(Math.random(), 500, 900) : 0);
+                                }
++                               //else{
++                // shows the 3 dots automatically, we expect the reponse to be empty upon creation
++                // TODO: Auto completion insertion point
++                               // }
+                        }, 0);
+                }

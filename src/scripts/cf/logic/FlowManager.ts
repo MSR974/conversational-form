@@ -25,7 +25,7 @@ namespace cf {
 		//	detail: string
 		FLOW_UPDATE: "cf-flow-update",
 		//	detail: ITag | ITagGroup
-	}
+	};
 
 	// class
 	export class FlowManager {
@@ -35,19 +35,14 @@ namespace cf {
 		private eventTarget: EventDispatcher;
 
 		private cfReference: ConversationalForm;
-		private tags: Array<ITag | ITagGroup>;
+		private tags: Array<ITag>;
 
 		private stopped: boolean = false;
 		private maxSteps: number = 0;
 		private step: number = 0;
 		private savedStep: number = -1;
+		private maxReachedStep: number = 0;
 		private stepTimer: number = 0;
-		/**
-		* ignoreExistingTags
-		* @type boolean
-		* ignore existing tags, usually this is set to true when using startFrom, where you don't want it to check for exisintg tags in the list
-		*/
-		private ignoreExistingTags: boolean = false;
 		private userInputSubmitCallback: () => void;
 
 		public get currentTag(): ITag | ITagGroup {
@@ -57,6 +52,7 @@ namespace cf {
 		constructor(options: FlowManagerOptions){
 			this.cfReference = options.cfReference;
 			this.eventTarget = options.eventTarget;
+
 			this.flowStepCallback = options.flowStepCallback;
 
 			this.setTags(options.tags);
@@ -116,19 +112,17 @@ namespace cf {
 				// go on with the flow
 				if(isTagValid){
 					// do the normal flow..
-					ConversationalForm.illustrateFlow(this, "dispatch", FlowEvents.USER_INPUT_UPDATE, appDTO)
+					ConversationalForm.illustrateFlow(this, "dispatch", FlowEvents.USER_INPUT_UPDATE, appDTO);
 
 					// update to latest DTO because values can be changed in validation flow...
 					appDTO = appDTO.input.getFlowDTO();
-
 					this.eventTarget.dispatchEvent(new CustomEvent(FlowEvents.USER_INPUT_UPDATE, {
 						detail: appDTO //UserInput value
 					}));
-
 					// goto next step when user has answered
 					setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
 				}else{
-					ConversationalForm.illustrateFlow(this, "dispatch", FlowEvents.USER_INPUT_INVALID, appDTO)
+					ConversationalForm.illustrateFlow(this, "dispatch", FlowEvents.USER_INPUT_INVALID, appDTO);
 
 					// Value not valid
 					this.eventTarget.dispatchEvent(new CustomEvent(FlowEvents.USER_INPUT_INVALID, {
@@ -141,7 +135,7 @@ namespace cf {
 			onValidationCallback();
 		}
 
-		public startFrom(indexOrTag: number | ITag, ignoreExistingTags: boolean = false){
+		public startFrom(indexOrTag: number | ITag){
 			if(typeof indexOrTag == "number")
 				this.step = indexOrTag;
 			else{
@@ -149,13 +143,7 @@ namespace cf {
 				this.step = this.tags.indexOf(indexOrTag);
 			}
 
-			this.ignoreExistingTags = ignoreExistingTags;
-			if(!this.ignoreExistingTags){
-				this.editTag(this.tags[this.step]);
-			}else{
-				//validate step, and ask for skipping of current step
-				this.showStep();
-			}
+			this.validateStepAndUpdate();
 		}
 
 		public start(){
@@ -172,7 +160,7 @@ namespace cf {
 				return;
 
 			if(this.savedStep != -1)
-				this.step = this.savedStep;
+				this.step = this.maxReachedStep;
 			
 			this.savedStep = -1;//reset saved step
 
@@ -214,19 +202,9 @@ namespace cf {
 		* go back in time and edit a tag.
 		*/
 		public editTag(tag: ITag): void {
-			this.ignoreExistingTags = false;
 			this.savedStep = this.step - 1;
 			this.step = this.tags.indexOf(tag); // === this.currentTag
 			this.validateStepAndUpdate();
-		}
-
-		private setTags(tags: Array<ITag | ITagGroup>){
-			this.tags = tags;
-
-			for(var i = 0; i < this.tags.length; i++){
-				const tag: ITag | ITagGroup = this.tags[i];
-				tag.eventTarget = this.eventTarget;
-			}
 		}
 
 		private skipStep(){
@@ -236,11 +214,22 @@ namespace cf {
 		private validateStepAndUpdate(){
 			if(this.maxSteps > 0){
 				if(this.step == this.maxSteps){
-					// console.warn("We are at the end..., submit click")
+					console.warn("We are at the end..., submit click");
 					this.cfReference.doSubmitForm();
 				}else{
 					this.step %= this.maxSteps;
-					if(this.currentTag.disabled){
+					
+					if (this.step <= this.maxSteps && this.step > this.maxReachedStep) {
+						this.maxReachedStep = this.step - 1;
+					}
+
+					if (this.currentTag && this.currentTag.empty_answer) {
+						// if current tag shouldn't wait for an answer go to next step
+						//this.savedStep = this.step;
+						setTimeout(() => this.nextStep(), ConversationalForm.animationsEnabled ? 250 : 0);
+					}
+
+					if(this.currentTag && this.currentTag.disabled){
 						// check if current tag has become or is disabled, if it is, then skip step.
 						this.skipStep();
 					}else{
@@ -259,10 +248,7 @@ namespace cf {
 			this.currentTag.refresh();
 
 			this.eventTarget.dispatchEvent(new CustomEvent(FlowEvents.FLOW_UPDATE, {
-				detail: {
-					tag: this.currentTag,
-					ignoreExistingTag: this.ignoreExistingTags
-				}
+				detail: this.currentTag
 			}));
 		}
 	}

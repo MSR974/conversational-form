@@ -457,14 +457,7 @@ var cf;
                 }
                 formEl.appendChild(tag);
             }
-            return formEl;
-        };
-        TagsParser.isElementFormless = function (element) {
-            if (element.hasAttribute("cf-formless"))
-                return true;
-            return false;
-        };
-        return TagsParser;
+            return formEl
     }());
     cf.TagsParser = TagsParser;
 })(cf || (cf = {}));
@@ -1061,27 +1054,16 @@ var cf;
                 this.resetTabList();
             }
         };
-        ControlElements.prototype.updateStateOnElementsFromTag = function (tag) {
-            for (var index = 0; index < this.elements.length; index++) {
-                var element = this.elements[index];
-                if (element.referenceTag == tag) {
-                    this.updateStateOnElements(element);
-                    break;
-                }
-            }
-        };
         ControlElements.prototype.updateStateOnElements = function (controlElement) {
+            this.disabled = true;
             this.currentControlElement = controlElement;
-            if (this.currentControlElement.type == "RadioButton") {
+            if (controlElement.type == "RadioButton") {
                 // uncheck other radio buttons...
                 var elements = this.getElements();
                 for (var i = 0; i < elements.length; i++) {
                     var element = elements[i];
                     if (element != controlElement) {
                         element.checked = false;
-                    }
-                    else {
-                        element.checked = true;
                     }
                 }
             }
@@ -1538,6 +1520,7 @@ var cf;
                 "input-placeholder-file-error": "File upload failed ...",
                 "input-placeholder-file-size-error": "File size too big ...",
                 "input-no-filter": "No results found for <strong>{input-value}</strong>",
+                "input-disabled-on-select": true,
                 "user-reponse-and": " and ",
                 "user-reponse-missing": "Missing input ...",
                 "user-reponse-missing-group": "Nothing selected ...",
@@ -1637,7 +1620,6 @@ var cf;
         "right": 39,
         "down": 40,
         "up": 38,
-        "backspace": 8,
         "enter": 13,
         "space": 32,
         "shift": 16,
@@ -1652,6 +1634,7 @@ var cf;
 /// <reference path="SelectTag.ts"/>
 /// <reference path="OptionTag.ts"/>
 /// <reference path="../ConversationalForm.ts"/>
+
 /// <reference path="../logic/EventDispatcher.ts"/>
 /// <reference path="../parsing/TagsParser.ts"/>
 // basic tag from form logic
@@ -1668,15 +1651,10 @@ var cf;
 // namespace
 var cf;
 (function (cf) {
-    cf.TagEvents = {
-        ORIGINAL_ELEMENT_CHANGED: "cf-tag-dom-element-changed"
-    };
     // class
     var Tag = (function () {
         function Tag(options) {
             this.domElement = options.domElement;
-            this.changeCallback = this.onDomElementChange.bind(this);
-            this.domElement.addEventListener("change", this.changeCallback, false);
             // remove tabIndex from the dom element.. danger zone... should we or should we not...
             this.domElement.tabIndex = -1;
             // questions array
@@ -1694,11 +1672,18 @@ var cf;
             // 	// set a standard e-mail pattern for email type input
             // 	this.pattern = new RegExp("^[^@]+@[^@]+\.[^@]+$");
             // }
-            if (this.type != "group" && cf.ConversationalForm.illustrateAppFlow) {
-                console.log('Conversational Form > Tag registered:', this.type, this);
+            if (this.type != "group") {
+                console.log('Conversational Form > Tag registered:', this.type);
             }
             this.refresh();
         }
+        Object.defineProperty(Tag.prototype, "empty_answer", {
+            get: function () {
+                return this.domElement.hasAttribute('cf-empty-answer');
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(Tag.prototype, "type", {
             get: function () {
                 return this.domElement.getAttribute("type") || this.domElement.tagName.toLowerCase();
@@ -1773,13 +1758,6 @@ var cf;
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(Tag.prototype, "eventTarget", {
-            set: function (value) {
-                this._eventTarget = value;
-            },
-            enumerable: true,
-            configurable: true
-        });
         Object.defineProperty(Tag.prototype, "errorMessage", {
             get: function () {
                 if (!this.errorMessages) {
@@ -1807,8 +1785,6 @@ var cf;
             configurable: true
         });
         Tag.prototype.dealloc = function () {
-            this.domElement.removeEventListener("change", this.changeCallback, false);
-            this.changeCallback = null;
             this.domElement = null;
             this.defaultValue = null;
             this.errorMessages = null;
@@ -1974,18 +1950,6 @@ var cf;
                 }
             }
         };
-        /**
-        * @name onDomElementChange
-        * on dom element value change event, ex. w. browser autocomplete mode
-        */
-        Tag.prototype.onDomElementChange = function () {
-            this._eventTarget.dispatchEvent(new CustomEvent(cf.TagEvents.ORIGINAL_ELEMENT_CHANGED, {
-                detail: {
-                    value: this.value,
-                    tag: this
-                }
-            }));
-        };
         return Tag;
     }());
     cf.Tag = Tag;
@@ -2005,8 +1969,7 @@ var cf;
     var TagGroup = (function () {
         function TagGroup(options) {
             this.elements = options.elements;
-            if (cf.ConversationalForm.illustrateAppFlow)
-                console.log('Conversational Form > TagGroup registered:', this.elements[0].type, this);
+            console.log('TagGroup registered:', this.elements[0].type, this);
         }
         Object.defineProperty(TagGroup.prototype, "required", {
             get: function () {
@@ -2021,13 +1984,9 @@ var cf;
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(TagGroup.prototype, "eventTarget", {
-            set: function (value) {
-                this._eventTarget = value;
-                for (var i = 0; i < this.elements.length; i++) {
-                    var tag = this.elements[i];
-                    tag.eventTarget = value;
-                }
+        Object.defineProperty(TagGroup.prototype, "empty_answer", {
+            get: function () {
+                return false;
             },
             enumerable: true,
             configurable: true
@@ -2287,6 +2246,7 @@ var cf;
                 }
                 else {
                     console.warn(_this.constructor.name, 'option tag invalid:', tag);
+
                 }
             }
             return _this;
@@ -2385,6 +2345,7 @@ var cf;
 
 /// <reference path="Tag.ts"/>
 /// <reference path="../parsing/TagsParser.ts"/>
+
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = Object.setPrototypeOf ||
         ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
@@ -2866,6 +2827,7 @@ var cf;
             enumerable: true,
             configurable: true
         });
+
         Object.defineProperty(UploadFileUI.prototype, "files", {
             get: function () {
                 return this._files;
@@ -2972,6 +2934,7 @@ var cf;
                 this.onDomElementChangeCallback = null;
             }
             _super.prototype.dealloc.call(this);
+
         };
         UploadFileUI.prototype.getTemplate = function () {
             var isChecked = this.referenceTag.value == "1" || this.referenceTag.domElement.hasAttribute("checked");
@@ -2981,10 +2944,11 @@ var cf;
     }(cf.Button));
     cf.UploadFileUI = UploadFileUI;
 })(cf || (cf = {}));
-
+          
 /// <reference path="BasicElement.ts"/>
 /// <reference path="control-elements/ControlElements.ts"/>
 /// <reference path="../logic/FlowManager.ts"/>
+
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = Object.setPrototypeOf ||
         ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
@@ -3478,6 +3442,7 @@ var cf;
 /// <reference path="../BasicElement.ts"/>
 /// <reference path="../../logic/Helpers.ts"/>
 /// <reference path="../../ConversationalForm.ts"/>
+
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = Object.setPrototypeOf ||
         ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
@@ -3532,6 +3497,7 @@ var cf;
             enumerable: true,
             configurable: true
         });
+
         ChatResponse.prototype.setValue = function (dto) {
             if (dto === void 0) { dto = null; }
             if (!this.visible) {
@@ -3566,6 +3532,7 @@ var cf;
             this.el.classList.remove("show");
             this.disabled = true;
         };
+
         ChatResponse.prototype.show = function () {
             this.el.classList.add("show");
             this.disabled = false;
@@ -3587,6 +3554,7 @@ var cf;
         };
         ChatResponse.prototype.processResponseAndSetText = function () {
             var _this = this;
+
             var innerResponse = this.response;
             if (this._tag && this._tag.type == "password" && !this.isRobotReponse) {
                 var newStr = "";
@@ -3663,6 +3631,7 @@ var cf;
                 }
             }, 0);
         };
+
         ChatResponse.prototype.dealloc = function () {
             if (this.onClickCallback) {
                 this.el.removeEventListener(cf.Helpers.getMouseEvent("click"), this.onClickCallback, false);
@@ -3738,7 +3707,9 @@ var cf;
             else {
                 // this should never happen..
                 throw new Error("No current response ..?");
+
             }
+            // }
         };
         ChatList.prototype.onFlowUpdate = function (event) {
             cf.ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
@@ -3887,6 +3858,7 @@ var cf;
     }(cf.BasicElement));
     cf.ChatList = ChatList;
 })(cf || (cf = {}));
+
 
 /// <reference path="../form-tags/Tag.ts"/>
 /// <reference path="../ConversationalForm.ts"/>
@@ -4059,6 +4031,7 @@ var cf;
             this.savedStep = this.step - 1;
             this.step = this.tags.indexOf(tag); // === this.currentTag
             this.validateStepAndUpdate();
+
         };
         FlowManager.prototype.setTags = function (tags) {
             this.tags = tags;
@@ -4106,6 +4079,7 @@ var cf;
     cf.FlowManager = FlowManager;
 })(cf || (cf = {}));
 
+
 // version 0.9.0
 /// <reference path="ui/UserInput.ts"/>
 /// <reference path="ui/chat/ChatList.ts"/>
@@ -4118,6 +4092,7 @@ var cf;
 /// <reference path="form-tags/ButtonTag.ts"/>
 /// <reference path="data/Dictionary.ts"/>
 /// <reference path="parsing/TagsParser.ts"/>
+
 var cf;
 (function (cf_1) {
     var ConversationalForm = (function () {
@@ -4262,6 +4237,7 @@ var cf;
                 this.chatList.updateThumbnail(id == "robot-image", value);
             }
         };
+
         ConversationalForm.prototype.getFormData = function (serialized) {
             if (serialized === void 0) { serialized = false; }
             if (serialized) {
@@ -4316,6 +4292,7 @@ var cf;
                     if (!groups[tag.name])
                         groups[tag.name] = [];
                     groups[tag.name].push(tag);
+
                 }
             }
             if (Object.keys(groups).length > 0) {

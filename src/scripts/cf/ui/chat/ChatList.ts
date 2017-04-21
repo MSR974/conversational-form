@@ -7,7 +7,7 @@ namespace cf {
 	// interface
 	export const ChatListEvents = {
 		CHATLIST_UPDATED: "cf-chatlist-updated"
-	}
+	};
 
 	// class
 	export class ChatList extends BasicElement {
@@ -69,20 +69,20 @@ namespace cf {
 		private onFlowUpdate(event: CustomEvent){
 			ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
 
-			const currentTag: ITag | ITagGroup = <ITag | ITagGroup> event.detail.tag;
+			const currentTag: ITag | ITagGroup = <ITag | ITagGroup> event.detail;
 			if(this.currentResponse)
 				this.currentResponse.disabled = false;
 
-			if(this.containsTagResponse(currentTag) && !event.detail.ignoreExistingTag){
-				// because user maybe have scrolled up and wants to edit
+			if(this.containsTagResponse(currentTag)){
+				// because user maybe have scrolled up
 
 				// tag is already in list, so re-activate it
-				this.onUserWantsToEditTag(currentTag);
+				this.onUserWantToEditPreviousAnswer(currentTag);
 			}else{
 				// robot response
 				const robot: ChatResponse = this.createResponse(true, currentTag, currentTag.question);
 				if(this.currentUserResponse){
-					// linked, but only if we should not ignore existing tag
+					// linked
 					this.currentUserResponse.setLinkToOtherReponse(robot);
 					robot.setLinkToOtherReponse(this.currentUserResponse);
 				}
@@ -111,8 +111,9 @@ namespace cf {
 		* @name onUserAnswerClicked
 		* on user ChatReponse clicked
 		*/
-		private onUserWantsToEditTag(tagToChange: ITag): void {
+		private onUserWantToEditPreviousAnswer(tagToChange: ITag): void {
 			let oldReponse: ChatResponse;
+
 			for (let i = 0; i < this.responses.length; i++) {
 				let element: ChatResponse = <ChatResponse>this.responses[i];
 				if(!element.isRobotReponse && element.tag == tagToChange){
@@ -130,7 +131,6 @@ namespace cf {
 				if(this.currentUserResponse == this.responses[this.responses.length - 1]){
 					this.currentUserResponse.hide();
 				}
-
 				this.currentUserResponse = oldReponse;
 
 				this.onListUpdate(this.currentUserResponse);
@@ -164,7 +164,7 @@ namespace cf {
 					this.flowDTOFromUserInputUpdate.text = Dictionary.get("user-reponse-missing");
 				}
 			}
-
+			
 			this.currentUserResponse.setValue(this.flowDTOFromUserInputUpdate);
 			this.scrollListTo();
 		}
@@ -184,24 +184,26 @@ namespace cf {
 		}
 
 		public createResponse(isRobotReponse: boolean, currentTag: ITag, value: string = null) : ChatResponse{
+			let lastResponse: ChatResponse = this.responses[this.responses.length - 1];
+
 			const response: ChatResponse = new ChatResponse({
 				// image: null,
 				tag: currentTag,
 				eventTarget: this.eventTarget,
 				isRobotReponse: isRobotReponse,
 				response: value,
-				image: isRobotReponse ? Dictionary.getRobotResponse("robot-image") : Dictionary.get("user-image"),
+				image: isRobotReponse ? ((lastResponse && lastResponse.tag && lastResponse.tag.empty_answer) ? "" : Dictionary.getRobotResponse("robot-image")) : Dictionary.get("user-image"),
 			});
 
-			this.responses.push(response);
+			if (isRobotReponse || (!isRobotReponse && currentTag && !currentTag.empty_answer) || currentTag === null) {
+				this.responses.push(response);
+				this.currentResponse = response;
 
-			this.currentResponse = response;
+				const scrollable: HTMLElement = <HTMLElement> this.el.querySelector("scrollable");
+				scrollable.appendChild(this.currentResponse.el);
 
-			const scrollable: HTMLElement = <HTMLElement> this.el.querySelector("scrollable");
-			scrollable.appendChild(this.currentResponse.el);
-
-			this.onListUpdate(response);
-
+				this.onListUpdate(response);
+			}
 			return response;
 		}
 
