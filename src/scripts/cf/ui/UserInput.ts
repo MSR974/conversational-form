@@ -18,14 +18,11 @@ namespace cf {
 
 	export const UserInputEvents = {
 		SUBMIT: "cf-input-user-input-submit",
-		//	detail: string
-
 		KEY_CHANGE: "cf-input-key-change",
-		//	detail: string
-
 		CONTROL_ELEMENTS_ADDED: "cf-input-control-elements-added",
-		//	detail: string
-	};
+
+		HEIGHT_CHANGE: "cf-input-height-change",
+	}
 
 	// class
 	export class UserInput extends BasicElement {
@@ -35,9 +32,8 @@ namespace cf {
 		public el: HTMLElement;
 
 		private cfReference: ConversationalForm;
-		private inputElement: HTMLTextAreaElement;
+		private inputElement: HTMLInputElement | HTMLTextAreaElement;
 		private submitButton: HTMLButtonElement;
-		private currentValue: string = "";
 		private windowFocusCallback: () => void;
 		private flowUpdateCallback: () => void;
 		private inputInvalidCallback: () => void;
@@ -47,6 +43,7 @@ namespace cf {
 		private onInputBlurCallback: () => void;
 		private onControlElementProgressChangeCallback: () => void;
 		private errorTimer: number = 0;
+		private initialInputHeight: number = 0;
 		private shiftIsDown: boolean = false;
 		private _disabled: boolean = false;
 		private keyUpCallback: () => void;
@@ -92,9 +89,10 @@ namespace cf {
 			this.cfReference = options.cfReference;
 			this.eventTarget = options.eventTarget;
 			this.inputElement = this.el.getElementsByTagName("textarea")[0];
+
 			this.onInputFocusCallback = this.onInputFocus.bind(this);
-			this.inputElement.addEventListener('focus', this.onInputFocusCallback, false);
 			this.onInputBlurCallback = this.onInputBlur.bind(this);
+			this.inputElement.addEventListener('focus', this.onInputFocusCallback, false);
 			this.inputElement.addEventListener('blur', this.onInputBlurCallback, false);
 
 			//<cf-input-control-elements> is defined in the ChatList.ts
@@ -169,15 +167,34 @@ namespace cf {
 				this.controlElements.clearTagsAndReset();
 			
 			this.disabled = true;
-			this.visible = false;
+      
+		/**
+		* @name onOriginalTagChanged
+		* on domElement from a Tag value changed..
+		*/
+		private onOriginalTagChanged(event: CustomEvent): void {
+			if(this.currentTag == event.detail.tag){
+				this.onInputChange();
+			}
+
+			if(this.controlElements && this.controlElements.active){
+				this.controlElements.updateStateOnElementsFromTag(event.detail.tag)
+			}
 		}
 
 		private onInputChange(){
 			if(!this.active && !this.controlElements.active)
 				return;
 
+			// safari likes to jump around with the scrollHeight value, let's keep it in check with an initial height.
+			const oldHeight: number = Math.max(this.initialInputHeight, parseInt(this.inputElement.style.height, 10));
 			this.inputElement.style.height = "0px";
-			this.inputElement.style.height = this.inputElement.scrollHeight + "px";
+			this.inputElement.style.height = (this.inputElement.scrollHeight === 0 ? oldHeight : this.inputElement.scrollHeight) + "px";
+
+			ConversationalForm.illustrateFlow(this, "dispatch", UserInputEvents.HEIGHT_CHANGE);
+			this.eventTarget.dispatchEvent(new CustomEvent(UserInputEvents.HEIGHT_CHANGE, {
+				detail: this.inputElement.scrollHeight
+			}));
 		}
 
 		private inputInvalid(event: CustomEvent){
@@ -219,6 +236,49 @@ namespace cf {
 			}
 		}
 
+		private checkForCorrectInputTag(){
+			// handle password natively
+			const currentType: String = this.inputElement.getAttribute("type");
+			const isCurrentInputTypeTextAreaButNewTagPassword: boolean = this._currentTag.type == "password" && currentType != "password";
+			const isCurrentInputTypeInputButNewTagNotPassword: boolean = this._currentTag.type != "password" && currentType == "password";
+
+			// remove focus and blur events, because we want to create a new element
+			if(this.inputElement && (isCurrentInputTypeTextAreaButNewTagPassword || isCurrentInputTypeInputButNewTagNotPassword)){
+				this.inputElement.removeEventListener('focus', this.onInputFocusCallback, false);
+				this.inputElement.removeEventListener('blur', this.onInputBlurCallback, false);
+			}
+
+			if(isCurrentInputTypeTextAreaButNewTagPassword){
+				// change to input
+				const input = document.createElement("input");
+				Array.prototype.slice.call(this.inputElement.attributes).forEach((item: any) => {
+					input.setAttribute(item.name, item.value);
+				});
+				input.setAttribute("autocomplete", "new-password");
+				this.inputElement.parentNode.replaceChild(input, this.inputElement);
+				this.inputElement = input;
+			}else if(isCurrentInputTypeInputButNewTagNotPassword){
+				// change to textarea
+				const textarea = document.createElement("textarea");
+				Array.prototype.slice.call(this.inputElement.attributes).forEach((item: any) => {
+					textarea.setAttribute(item.name, item.value);
+				});
+				this.inputElement.parentNode.replaceChild(textarea, this.inputElement);
+				this.inputElement = textarea;
+			}
+
+			// add focus and blur events to newly created input element
+			if(this.inputElement && (isCurrentInputTypeTextAreaButNewTagPassword || isCurrentInputTypeInputButNewTagNotPassword)){
+				this.inputElement.addEventListener('focus', this.onInputFocusCallback, false);
+				this.inputElement.addEventListener('blur', this.onInputBlurCallback, false);
+			}
+
+			if(this.initialInputHeight == 0){
+				// initial height not set
+				this.initialInputHeight = this.inputElement.offsetHeight;
+			}
+		}
+
 		private onFlowUpdate(event: CustomEvent){
 			ConversationalForm.illustrateFlow(this, "receive", event.type, event.detail);
 			// animate input field in
@@ -227,6 +287,9 @@ namespace cf {
 
 			this._currentTag = <ITag | ITagGroup> event.detail;
 			this.el.setAttribute("tag-type", this._currentTag.type);
+
+			// replace textarea and visa versa
+			this.checkForCorrectInputTag()
 
 			// set input field to type password if the dom input field is that, covering up the input
 			this.inputElement.setAttribute("type", this._currentTag.type == "password" ? "password" : "input");
@@ -253,11 +316,11 @@ namespace cf {
 
 			if(this._currentTag.type == "text" || this._currentTag.type == "email"){
 				this.inputElement.value = this._currentTag.defaultValue.toString();
-				this.onInputChange();
 			}
 
 			setTimeout(() => {
 				this.disabled = false;
+				this.onInputChange();
 			}, 150);
 		}
 
@@ -285,24 +348,26 @@ namespace cf {
 			this.onEnterOrSubmitButtonSubmit(event);
 		}
 
+		private isMetaKeyPressed(event: KeyboardEvent): boolean{
+			// if any meta keys, then ignore, getModifierState, but safari does not support..
+			if(event.metaKey || [91, 93].indexOf(event.keyCode) !== -1)
+				return;
+		}
+
 		private onKeyDown(event: KeyboardEvent){
 			if(!this.active && !this.controlElements.focus)
 				return;
 
+			if(this.isMetaKeyPressed(event))
+				return;
+
+			// if any meta keys, then ignore
 			if(event.keyCode == Dictionary.keyCodes["shift"])
 				this.shiftIsDown = true;
-			
+
 			// prevent textarea line breaks
 			if(event.keyCode == Dictionary.keyCodes["enter"] && !event.shiftKey){
 				event.preventDefault();
-			}
-			//else{
-				// handle password input
-			if(this._currentTag && this._currentTag.type == "password"){
-				if(event.key.toLowerCase() == "backspace")
-					this.currentValue = this.currentValue.length > 0 ? this.currentValue.slice(0, this.currentValue.length - 1) : "";
-				else
-					this.currentValue += event.key;
 			}
 			// }
 		}
@@ -311,9 +376,8 @@ namespace cf {
 			if(!this.active && !this.controlElements.focus)
 				return;
 
-			// reset current value, happens when user selects all text and delete or cmd+backspace
-			if(this.inputElement.value == "" || this.inputElement.selectionStart != this.inputElement.selectionEnd)
-				this.currentValue = "";
+			if(this.isMetaKeyPressed(event))
+				return;
 
 			if(event.keyCode == Dictionary.keyCodes["shift"]){
 				this.shiftIsDown = false;
@@ -340,7 +404,7 @@ namespace cf {
 
 					node = node.parentNode;
 				}
-				
+
 				// prevent normal behaviour, we are not here to take part, we are here to take over!
 				if(!doesKeyTargetExistInCF){
 					event.preventDefault();
@@ -409,11 +473,6 @@ namespace cf {
 				}
 			}else if(event.keyCode != Dictionary.keyCodes["shift"] && event.keyCode != Dictionary.keyCodes["tab"]){
 				this.dispatchKeyChange(value, event.keyCode)
-			}
-
-			// handle password input
-			if(this._currentTag && this._currentTag.type == "password"){
-				this.inputElement.value = this.currentValue.replace(/./g, () => "*");
 			}
 
 			this.onInputChange();
